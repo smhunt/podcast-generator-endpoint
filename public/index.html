@@ -625,8 +625,18 @@ Built with care by Ecoworks Webb Architecture. Try it now by clicking Generate P
       }
     }
 
+    // Stop all audio players
+    function stopAllAudio() {
+      document.querySelectorAll('audio').forEach(audio => {
+        audio.pause();
+        audio.currentTime = 0;
+      });
+    }
+
     // Play podcast in main player
     function playPodcast(url, filename) {
+      stopAllAudio(); // Stop any playing audio first
+
       const mainPlayer = document.getElementById('mainPlayer');
       const mainAudio = document.getElementById('mainAudio');
       const nowPlayingTitle = document.getElementById('nowPlayingTitle');
@@ -644,6 +654,17 @@ Built with care by Ecoworks Webb Architecture. Try it now by clicking Generate P
         }
       });
     }
+
+    // When any audio starts playing, pause all others
+    document.addEventListener('play', function(e) {
+      if (e.target.tagName === 'AUDIO') {
+        document.querySelectorAll('audio').forEach(audio => {
+          if (audio !== e.target && !audio.paused) {
+            audio.pause();
+          }
+        });
+      }
+    }, true);
 
     // Load podcasts list
     async function loadPodcasts() {
