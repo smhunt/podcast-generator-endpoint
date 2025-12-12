@@ -128,6 +128,22 @@
     .podcast-item.active { background: rgba(249,115,22,0.15); border-left: 3px solid #f97316; }
     .podcast-info { cursor: pointer; display: flex; align-items: center; flex: 1; }
     .podcast-info:hover { color: #f97316; }
+    .podcast-header { display: flex; align-items: center; justify-content: space-between; width: 100%; margin-bottom: 8px; }
+    .download-btn {
+      background: rgba(255,255,255,0.1);
+      color: #a1a1aa;
+      border: none;
+      padding: 6px 12px;
+      border-radius: 6px;
+      font-size: 0.8rem;
+      cursor: pointer;
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      transition: all 0.2s;
+    }
+    .download-btn:hover { background: rgba(249,115,22,0.2); color: #f97316; }
     .podcast-name { font-weight: 500; }
     .podcast-meta { font-size: 0.8rem; color: #a1a1aa; }
     .main-player {
@@ -688,14 +704,19 @@ Built with care by Ecoworks Webb Architecture. Try it now by clicking Generate P
         listEl.innerHTML = `<ul class="podcast-list">
           ${data.podcasts.map(p => `
             <li class="podcast-item" data-url="${API_BASE}${p.url}">
-              <div class="podcast-info" onclick="playPodcast('${API_BASE}${p.url}', '${p.filename}')">
-                <span class="play-icon">&#9658;</span>
-                <div style="display: inline-block;">
-                  <div class="podcast-name">${p.filename}</div>
-                  <div class="podcast-meta">${formatBytes(p.size)} - ${new Date(p.createdAt).toLocaleString()}</div>
+              <div class="podcast-header">
+                <div class="podcast-info" onclick="playPodcast('${API_BASE}${p.url}', '${p.filename}')">
+                  <span class="play-icon">&#9658;</span>
+                  <div style="display: inline-block;">
+                    <div class="podcast-name">${p.filename}</div>
+                    <div class="podcast-meta">${formatBytes(p.size)} - ${new Date(p.createdAt).toLocaleString()}</div>
+                  </div>
                 </div>
+                <a href="${API_BASE}${p.url}" download="${p.filename}" class="download-btn">
+                  <span>&#8595;</span> Download
+                </a>
               </div>
-              <audio controls preload="none" data-src="${API_BASE}${p.url}" style="width: 100%; margin-top: 8px;" onclick="lazyLoadAudio(this)"></audio>
+              <audio controls preload="none" data-src="${API_BASE}${p.url}" style="width: 100%;" onclick="lazyLoadAudio(this)"></audio>
             </li>
           `).join('')}
         </ul>`;
