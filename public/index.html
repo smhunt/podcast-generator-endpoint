@@ -170,6 +170,81 @@
       font-weight: 500;
       margin-left: 8px;
     }
+    .live-preview {
+      background: rgba(0,0,0,0.3);
+      border-radius: 8px;
+      padding: 12px 16px;
+      margin-bottom: 16px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 16px;
+      font-size: 0.85rem;
+    }
+    .preview-item { display: flex; align-items: center; gap: 6px; }
+    .preview-label { color: #a1a1aa; }
+    .preview-value { color: #f97316; font-weight: 600; }
+    .confirm-modal {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0,0,0,0.8);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+      padding: 20px;
+    }
+    .confirm-modal.hidden { display: none; }
+    .confirm-box {
+      background: #1a1a2e;
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 16px;
+      padding: 24px;
+      max-width: 400px;
+      width: 100%;
+    }
+    .confirm-box h3 {
+      color: #f97316;
+      margin-bottom: 16px;
+      font-size: 1.2rem;
+    }
+    .confirm-details {
+      background: rgba(0,0,0,0.3);
+      border-radius: 8px;
+      padding: 16px;
+      margin-bottom: 20px;
+    }
+    .confirm-row {
+      display: flex;
+      justify-content: space-between;
+      padding: 8px 0;
+      border-bottom: 1px solid rgba(255,255,255,0.05);
+    }
+    .confirm-row:last-child { border-bottom: none; }
+    .confirm-row .label { color: #a1a1aa; }
+    .confirm-row .value { color: #e4e4e7; font-weight: 500; }
+    .confirm-row .value.cost { color: #f97316; font-size: 1.1rem; }
+    .confirm-buttons { display: flex; gap: 12px; }
+    .confirm-buttons .btn { flex: 1; }
+    .btn-cancel {
+      background: rgba(255,255,255,0.1);
+    }
+    .metadata-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+      gap: 8px;
+      margin-top: 12px;
+    }
+    .metadata-item {
+      background: rgba(0,0,0,0.2);
+      padding: 8px 12px;
+      border-radius: 6px;
+      font-size: 0.8rem;
+    }
+    .metadata-item .label { color: #a1a1aa; display: block; margin-bottom: 2px; }
+    .metadata-item .value { color: #e4e4e7; font-weight: 500; }
     .endpoints {
       display: grid;
       gap: 12px;
@@ -365,6 +440,24 @@ In our latest update, we've added real-time cost tracking so you can monitor you
 
 Built with care by Ecoworks Webb Architecture. Try it now by clicking Generate Podcast!</textarea>
         </div>
+        <div class="live-preview" id="livePreview">
+          <div class="preview-item">
+            <span class="preview-label">Characters:</span>
+            <span class="preview-value" id="previewChars">0</span>
+          </div>
+          <div class="preview-item">
+            <span class="preview-label">Est. Cost:</span>
+            <span class="preview-value" id="previewCost">$0.0000</span>
+          </div>
+          <div class="preview-item">
+            <span class="preview-label">Est. Duration:</span>
+            <span class="preview-value" id="previewDuration">~0s</span>
+          </div>
+          <div class="preview-item">
+            <span class="preview-label">Model:</span>
+            <span class="preview-value">tts-1</span>
+          </div>
+        </div>
         <div class="row">
           <div class="form-group">
             <label>Episode Title</label>
@@ -428,8 +521,42 @@ Built with care by Ecoworks Webb Architecture. Try it now by clicking Generate P
     </footer>
   </div>
 
+  <!-- Confirmation Modal -->
+  <div id="confirmModal" class="confirm-modal hidden">
+    <div class="confirm-box">
+      <h3>Confirm Generation</h3>
+      <div class="confirm-details">
+        <div class="confirm-row">
+          <span class="label">Title</span>
+          <span class="value" id="confirmTitle"></span>
+        </div>
+        <div class="confirm-row">
+          <span class="label">Voice</span>
+          <span class="value" id="confirmVoice"></span>
+        </div>
+        <div class="confirm-row">
+          <span class="label">Characters</span>
+          <span class="value" id="confirmChars"></span>
+        </div>
+        <div class="confirm-row">
+          <span class="label">Est. Duration</span>
+          <span class="value" id="confirmDuration"></span>
+        </div>
+        <div class="confirm-row">
+          <span class="label">Cost</span>
+          <span class="value cost" id="confirmCost"></span>
+        </div>
+      </div>
+      <div class="confirm-buttons">
+        <button class="btn btn-cancel" onclick="hideConfirmModal()">Cancel</button>
+        <button class="btn" id="confirmGenerateBtn">Generate</button>
+      </div>
+    </div>
+  </div>
+
   <script>
     const API_BASE = window.location.origin;
+    const TTS_RATE = 15; // $15 per 1M characters
     let selectedVoice = 'nova';
 
     // Voice selection
@@ -439,6 +566,46 @@ Built with care by Ecoworks Webb Architecture. Try it now by clicking Generate P
         el.classList.add('selected');
         selectedVoice = el.dataset.voice;
       });
+    });
+
+    // Live preview - update as user types
+    const textArea = document.getElementById('text');
+    function updateLivePreview() {
+      const charCount = textArea.value.length;
+      const cost = (charCount * TTS_RATE) / 1_000_000;
+      const duration = Math.ceil(charCount / 150); // ~150 chars per second spoken
+
+      document.getElementById('previewChars').textContent = charCount.toLocaleString();
+      document.getElementById('previewCost').textContent = `$${cost.toFixed(4)}`;
+      document.getElementById('previewDuration').textContent = `~${duration}s`;
+    }
+    textArea.addEventListener('input', updateLivePreview);
+    updateLivePreview(); // Initial call
+
+    // Confirmation modal
+    function showConfirmModal() {
+      const text = textArea.value.trim();
+      const title = document.getElementById('title').value.trim() || 'podcast';
+      const charCount = text.length;
+      const cost = (charCount * TTS_RATE) / 1_000_000;
+      const duration = Math.ceil(charCount / 150);
+
+      document.getElementById('confirmTitle').textContent = title;
+      document.getElementById('confirmVoice').textContent = selectedVoice;
+      document.getElementById('confirmChars').textContent = charCount.toLocaleString();
+      document.getElementById('confirmDuration').textContent = `~${duration} seconds`;
+      document.getElementById('confirmCost').textContent = `$${cost.toFixed(4)}`;
+
+      document.getElementById('confirmModal').classList.remove('hidden');
+    }
+
+    function hideConfirmModal() {
+      document.getElementById('confirmModal').classList.add('hidden');
+    }
+
+    // Close modal on background click
+    document.getElementById('confirmModal').addEventListener('click', (e) => {
+      if (e.target.id === 'confirmModal') hideConfirmModal();
     });
 
     // Check API health
@@ -508,19 +675,27 @@ Built with care by Ecoworks Webb Architecture. Try it now by clicking Generate P
       }
     }
 
-    // Generate podcast
+    // Generate podcast - show confirmation first
     document.getElementById('generateForm').addEventListener('submit', async (e) => {
       e.preventDefault();
-      const btn = document.getElementById('generateBtn');
-      const resultEl = document.getElementById('generateResult');
-
       const text = document.getElementById('text').value.trim();
-      const title = document.getElementById('title').value.trim() || 'podcast';
+      const resultEl = document.getElementById('generateResult');
 
       if (!text) {
         resultEl.innerHTML = '<div class="result error">Please enter some text to convert.</div>';
         return;
       }
+
+      showConfirmModal();
+    });
+
+    // Actual generation after confirmation
+    async function generatePodcast() {
+      hideConfirmModal();
+      const btn = document.getElementById('generateBtn');
+      const resultEl = document.getElementById('generateResult');
+      const text = document.getElementById('text').value.trim();
+      const title = document.getElementById('title').value.trim() || 'podcast';
 
       btn.disabled = true;
       btn.innerHTML = '<span class="loading"></span> Generating...';
@@ -536,10 +711,36 @@ Built with care by Ecoworks Webb Architecture. Try it now by clicking Generate P
         const data = await res.json();
 
         if (data.success) {
+          const m = data.metadata;
           resultEl.innerHTML = `
             <div class="result success">
-              <strong>Generated successfully!</strong><span class="cost-badge">${data.cost.formatted}</span><br>
-              Voice: ${data.voice} | Characters: ${data.textLength} | Model: ${data.cost.model}<br>
+              <strong>Generated successfully!</strong><span class="cost-badge">${m.cost.formatted}</span>
+              <div class="metadata-grid">
+                <div class="metadata-item">
+                  <span class="label">Voice</span>
+                  <span class="value">${m.voice}</span>
+                </div>
+                <div class="metadata-item">
+                  <span class="label">Model</span>
+                  <span class="value">${m.model}</span>
+                </div>
+                <div class="metadata-item">
+                  <span class="label">Characters</span>
+                  <span class="value">${m.textLength.toLocaleString()}</span>
+                </div>
+                <div class="metadata-item">
+                  <span class="label">Processing</span>
+                  <span class="value">${m.processing.formatted}</span>
+                </div>
+                <div class="metadata-item">
+                  <span class="label">File Size</span>
+                  <span class="value">${m.file.formatted}</span>
+                </div>
+                <div class="metadata-item">
+                  <span class="label">Cost</span>
+                  <span class="value">${m.cost.formatted}</span>
+                </div>
+              </div>
               <audio controls src="${API_BASE}${data.audioUrl}" style="margin-top: 12px;"></audio>
             </div>
           `;
@@ -554,7 +755,10 @@ Built with care by Ecoworks Webb Architecture. Try it now by clicking Generate P
         btn.disabled = false;
         btn.textContent = 'Generate Podcast';
       }
-    });
+    }
+
+    // Hook up confirm button
+    document.getElementById('confirmGenerateBtn').addEventListener('click', generatePodcast);
 
     function formatBytes(bytes) {
       if (bytes < 1024) return bytes + ' B';

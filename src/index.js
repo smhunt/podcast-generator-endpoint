@@ -60,14 +60,21 @@ app.post('/api/generate', async (req, res) => {
       return res.status(500).json({ error: 'OpenAI API key not configured' });
     }
 
-    console.log(`Generating podcast: "${title}" with voice: ${voice}`);
+    const model = 'tts-1';
+    const costPerChar = TTS_PRICING[model] / 1_000_000;
+    const cost = text.length * costPerChar;
+    const startTime = Date.now();
+
+    console.log(`Generating podcast: "${title}" with voice: ${voice} | Est. cost: $${cost.toFixed(4)}`);
 
     // Generate speech using OpenAI TTS
     const mp3 = await openai.audio.speech.create({
-      model: 'tts-1',
+      model: model,
       voice: voice, // alloy, echo, fable, onyx, nova, shimmer
       input: text,
     });
+
+    const processingTimeMs = Date.now() - startTime;
 
     // Create filename with timestamp
     const timestamp = Date.now();
@@ -77,29 +84,43 @@ app.post('/api/generate', async (req, res) => {
     // Save the audio file
     const buffer = Buffer.from(await mp3.arrayBuffer());
     writeFileSync(filepath, buffer);
+    const fileSizeBytes = buffer.length;
 
-    // Calculate cost for metadata
-    const model = 'tts-1';
-    const costPerChar = TTS_PRICING[model] / 1_000_000;
-    const cost = text.length * costPerChar;
+    // Format file size
+    const formatBytes = (bytes) => {
+      if (bytes < 1024) return bytes + ' B';
+      if (bytes < 1048576) return (bytes / 1024).toFixed(1) + ' KB';
+      return (bytes / 1048576).toFixed(2) + ' MB';
+    };
+
+    // Format processing time
+    const formatTime = (ms) => {
+      if (ms < 1000) return ms + 'ms';
+      return (ms / 1000).toFixed(2) + 's';
+    };
+
+    const generatedAt = new Date().toISOString();
 
     // Add ID3 metadata to MP3
     const tags = {
       title: title,
       artist: `AI Voice: ${voice}`,
-      album: 'Podcast Generator',
+      album: 'Podcast Generator - Ecoworks Webb Architecture',
       year: new Date().getFullYear().toString(),
       comment: {
         language: 'eng',
-        text: `Generated with OpenAI ${model} | Voice: ${voice} | Characters: ${text.length} | Cost: $${cost.toFixed(4)}`,
+        text: `Generated with OpenAI ${model} | Voice: ${voice} | Characters: ${text.length} | Cost: $${cost.toFixed(4)} | Processing: ${formatTime(processingTimeMs)} | Size: ${formatBytes(fileSizeBytes)}`,
       },
       userDefinedText: [
         { description: 'TTS_MODEL', value: model },
         { description: 'TTS_VOICE', value: voice },
         { description: 'CHARACTER_COUNT', value: text.length.toString() },
-        { description: 'GENERATION_COST', value: `$${cost.toFixed(4)}` },
-        { description: 'GENERATED_AT', value: new Date().toISOString() },
+        { description: 'GENERATION_COST_USD', value: cost.toFixed(6) },
+        { description: 'PROCESSING_TIME_MS', value: processingTimeMs.toString() },
+        { description: 'FILE_SIZE_BYTES', value: fileSizeBytes.toString() },
+        { description: 'GENERATED_AT', value: generatedAt },
         { description: 'GENERATOR', value: 'Podcast Generator API' },
+        { description: 'DEVELOPER', value: 'Ecoworks Webb Architecture' },
       ],
     };
     NodeID3.write(tags, filepath);
@@ -111,7 +132,7 @@ app.post('/api/generate', async (req, res) => {
     sessionStats.totalCharacters += text.length;
     sessionStats.totalCost += cost;
 
-    console.log(`Podcast generated: ${audioUrl} | Cost: $${cost.toFixed(4)}`);
+    console.log(`Podcast generated: ${audioUrl} | Cost: $${cost.toFixed(4)} | Time: ${formatTime(processingTimeMs)} | Size: ${formatBytes(fileSizeBytes)}`);
 
     res.json({
       success: true,
@@ -119,14 +140,26 @@ app.post('/api/generate', async (req, res) => {
       voice,
       audioUrl,
       filename,
-      textLength: text.length,
-      cost: {
-        amount: cost,
-        formatted: `$${cost.toFixed(4)}`,
-        model,
-        ratePerMillion: TTS_PRICING[model],
+      metadata: {
+        textLength: text.length,
+        model: model,
+        voice: voice,
+        cost: {
+          amount: cost,
+          formatted: `$${cost.toFixed(4)}`,
+          ratePerMillion: TTS_PRICING[model],
+        },
+        processing: {
+          timeMs: processingTimeMs,
+          formatted: formatTime(processingTimeMs),
+        },
+        file: {
+          sizeBytes: fileSizeBytes,
+          formatted: formatBytes(fileSizeBytes),
+        },
+        generatedAt: generatedAt,
+        developer: 'Ecoworks Webb Architecture',
       },
-      generatedAt: new Date().toISOString(),
     });
   } catch (error) {
     console.error('Error generating podcast:', error);
@@ -135,6 +168,26 @@ app.post('/api/generate', async (req, res) => {
       details: error.message
     });
   }
+});
+
+// Preview cost before generation
+app.post('/api/preview', (req, res) => {
+  const { text } = req.body;
+  const charCount = text ? text.length : 0;
+  const model = 'tts-1';
+  const costPerChar = TTS_PRICING[model] / 1_000_000;
+  const cost = charCount * costPerChar;
+
+  res.json({
+    charCount,
+    model,
+    cost: {
+      amount: cost,
+      formatted: `$${cost.toFixed(4)}`,
+      ratePerMillion: TTS_PRICING[model],
+    },
+    estimatedDuration: `~${Math.ceil(charCount / 150)} seconds`, // rough estimate
+  });
 });
 
 // Get session stats

@@ -2,6 +2,21 @@
 
 All notable changes to the Podcast Generator API will be documented in this file.
 
+## [1.4.0] - 2025-12-12
+
+### Added
+- Live cost preview while typing (characters, cost, est. duration)
+- Confirmation dialog before generation with full cost breakdown
+- Processing time tracking (shows how long API took)
+- File size in API response and metadata
+- Enhanced ID3 metadata: processing time, file size, developer attribution
+- `/api/preview` endpoint for cost estimation
+- Metadata grid in success results showing all generation details
+
+### Changed
+- API response now returns structured `metadata` object
+- Improved console logging with all metrics
+
 ## [1.3.0] - 2025-12-12
 
 ### Added
