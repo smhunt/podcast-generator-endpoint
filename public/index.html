@@ -190,6 +190,26 @@
     @keyframes spin { to { transform: rotate(360deg); } }
     .row { display: flex; gap: 16px; }
     .row .form-group { flex: 1; }
+    footer {
+      text-align: center;
+      padding: 40px 20px;
+      color: #71717a;
+      font-size: 0.85rem;
+      border-top: 1px solid rgba(255,255,255,0.1);
+      margin-top: 40px;
+    }
+    footer a {
+      color: #f97316;
+      text-decoration: none;
+      transition: color 0.2s;
+    }
+    footer a:hover { color: #fb923c; }
+    .footer-links {
+      display: flex;
+      justify-content: center;
+      gap: 24px;
+      margin-bottom: 12px;
+    }
   </style>
 </head>
 <body>
@@ -287,6 +307,15 @@
         <p style="color: #a1a1aa;">Loading...</p>
       </div>
     </div>
+
+    <footer>
+      <div class="footer-links">
+        <a href="https://github.com/smhunt/podcast-generator-endpoint/blob/main/CHANGELOG.md" target="_blank">Changelog</a>
+        <a href="https://github.com/smhunt/podcast-generator-endpoint/blob/main/ROADMAP.md" target="_blank">Roadmap</a>
+        <a href="https://github.com/smhunt/podcast-generator-endpoint" target="_blank">GitHub</a>
+      </div>
+      <p>&copy; <span id="currentYear"></span> Ecoworks Webb Architecture. All rights reserved.</p>
+    </footer>
   </div>
 
   <script>
@@ -413,6 +442,9 @@
         console.error('Failed to load stats:', err);
       }
     }
+
+    // Set current year
+    document.getElementById('currentYear').textContent = new Date().getFullYear();
 
     // Initialize
     checkHealth();
