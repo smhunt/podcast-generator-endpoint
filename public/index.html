@@ -224,6 +224,89 @@
       gap: 24px;
       margin-bottom: 12px;
     }
+
+    /* Mobile Responsive Styles */
+    @media (max-width: 768px) {
+      body { padding: 12px; }
+      header { padding: 24px 0; }
+      h1 { font-size: 1.75rem; }
+      .subtitle { font-size: 0.95rem; }
+      .card { padding: 16px; border-radius: 12px; margin-bottom: 16px; }
+      .card h2 { font-size: 1.1rem; margin-bottom: 12px; }
+
+      /* Stats bar - stack on mobile */
+      .stats-bar {
+        flex-direction: column;
+        gap: 8px;
+        align-items: center;
+      }
+
+      /* Voices grid - 2 columns on mobile */
+      .voices-grid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 8px;
+      }
+      .voice-option { padding: 10px 8px; }
+      .voice-name { font-size: 0.9rem; }
+      .voice-desc { font-size: 0.7rem; }
+
+      /* Buttons - full width on mobile */
+      .btn {
+        width: 100%;
+        padding: 14px 20px;
+        margin-bottom: 10px;
+      }
+      .btn-secondary {
+        margin-left: 0;
+        background: rgba(255,255,255,0.1);
+      }
+
+      /* Endpoint cards - stack description */
+      .endpoint {
+        flex-wrap: wrap;
+        gap: 8px;
+        padding: 10px;
+      }
+      .endpoint-desc {
+        width: 100%;
+        margin-left: 0;
+        margin-top: 4px;
+      }
+
+      /* Podcast list items */
+      .podcast-item {
+        padding: 14px 10px;
+      }
+      .podcast-name {
+        font-size: 0.9rem;
+        word-break: break-all;
+      }
+      .podcast-meta { font-size: 0.75rem; }
+      .play-icon { font-size: 0.9rem; }
+
+      /* Main player */
+      .main-player { padding: 16px; }
+      .now-playing-title { font-size: 1rem; }
+
+      /* Result box */
+      .result { padding: 12px; font-size: 0.9rem; }
+      .cost-badge { display: block; margin: 8px 0 0 0; }
+
+      /* Footer */
+      footer { padding: 24px 16px; }
+      .footer-links { gap: 16px; flex-wrap: wrap; }
+
+      /* Textarea taller on mobile for easier editing */
+      textarea { min-height: 180px; font-size: 0.95rem; }
+    }
+
+    /* Small phones */
+    @media (max-width: 380px) {
+      h1 { font-size: 1.5rem; }
+      .voices-grid { grid-template-columns: repeat(2, 1fr); }
+      .voice-option { padding: 8px 6px; }
+      .stats-bar { font-size: 0.8rem; }
+    }
   </style>
 </head>
 <body>
@@ -272,13 +355,15 @@
       <form id="generateForm">
         <div class="form-group">
           <label>Text to Convert</label>
-          <textarea id="text" placeholder="Enter the text you want to convert to speech...">Welcome to the Podcast Generator API, powered by OpenAI's Text-to-Speech technology. This application uses the TTS-1 model to convert your written content into natural-sounding audio.
+          <textarea id="text" placeholder="Enter the text you want to convert to speech...">Welcome to the Podcast Generator API, developed by Ecoworks Webb Architecture. This application is powered by OpenAI's Text-to-Speech technology, using the TTS-1 model to convert your written content into natural-sounding audio.
 
-Behind the scenes, we're using Node.js with Express to handle API requests, and the OpenAI SDK to generate speech. You can choose from six distinct AI voices: Alloy for a neutral tone, Echo for warmth, Fable for dramatic flair, Nova for an upbeat style, Onyx for authority, and Shimmer for clarity.
+Behind the scenes, we're running Node.js with Express to handle API requests, integrated with the OpenAI SDK for speech generation. You can choose from six distinct AI voices: Alloy for a neutral tone, Echo for warmth, Fable for dramatic flair, Nova for an upbeat style, Onyx for authority, and Shimmer for clarity.
 
 Each generated podcast is saved as an MP3 file with embedded ID3 metadata, including the voice used, character count, and generation cost. The current rate is fifteen dollars per million characters, making it an affordable solution for content creators.
 
-This interface was built with vanilla HTML, CSS, and JavaScript, featuring a modern dark theme with orange accents. Give it a try by clicking Generate Podcast!</textarea>
+In our latest update, we've added real-time cost tracking so you can monitor your spending per generation and across your entire session. We've also implemented a clickable playlist with a dedicated audio player, making it easy to browse and play your generated content. The interface features a modern dark theme with orange accents, and works beautifully on both desktop and mobile devices.
+
+Built with care by Ecoworks Webb Architecture. Try it now by clicking Generate Podcast!</textarea>
         </div>
         <div class="row">
           <div class="form-group">

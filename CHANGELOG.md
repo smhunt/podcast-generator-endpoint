@@ -2,6 +2,20 @@
 
 All notable changes to the Podcast Generator API will be documented in this file.
 
+## [1.3.0] - 2025-12-12
+
+### Added
+- Mobile-responsive design optimized for phones and tablets
+- Updated sample text with full technology explanation
+- Ecoworks Webb Architecture branding throughout
+
+### Changed
+- Voice grid displays 2 columns on mobile
+- Buttons stack full-width on mobile
+- Stats bar stacks vertically on small screens
+- Larger tap targets for touch devices
+- Improved text readability on mobile
+
 ## [1.2.0] - 2025-12-12
 
 ### Added
