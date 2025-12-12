@@ -119,15 +119,15 @@
     .podcast-list { list-style: none; }
     .podcast-item {
       display: flex;
-      align-items: center;
-      justify-content: space-between;
+      flex-direction: column;
       padding: 12px;
       border-bottom: 1px solid rgba(255,255,255,0.1);
     }
     .podcast-item:last-child { border-bottom: none; }
-    .podcast-item:hover { background: rgba(249,115,22,0.1); cursor: pointer; }
+    .podcast-item:hover { background: rgba(249,115,22,0.05); }
     .podcast-item.active { background: rgba(249,115,22,0.15); border-left: 3px solid #f97316; }
-    .podcast-info { flex: 1; }
+    .podcast-info { cursor: pointer; display: flex; align-items: center; flex: 1; }
+    .podcast-info:hover { color: #f97316; }
     .podcast-name { font-weight: 500; }
     .podcast-meta { font-size: 0.8rem; color: #a1a1aa; }
     .main-player {
@@ -680,14 +680,15 @@ Built with care by Ecoworks Webb Architecture. Try it now by clicking Generate P
 
         listEl.innerHTML = `<ul class="podcast-list">
           ${data.podcasts.map(p => `
-            <li class="podcast-item" data-url="${API_BASE}${p.url}" onclick="playPodcast('${API_BASE}${p.url}', '${p.filename}')">
-              <div class="podcast-info">
+            <li class="podcast-item" data-url="${API_BASE}${p.url}">
+              <div class="podcast-info" onclick="playPodcast('${API_BASE}${p.url}', '${p.filename}')">
                 <span class="play-icon">&#9658;</span>
                 <div style="display: inline-block;">
                   <div class="podcast-name">${p.filename}</div>
                   <div class="podcast-meta">${formatBytes(p.size)} - ${new Date(p.createdAt).toLocaleString()}</div>
                 </div>
               </div>
+              <audio controls src="${API_BASE}${p.url}" style="width: 100%; margin-top: 8px;"></audio>
             </li>
           `).join('')}
         </ul>`;
