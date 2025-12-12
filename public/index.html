@@ -125,9 +125,23 @@
       border-bottom: 1px solid rgba(255,255,255,0.1);
     }
     .podcast-item:last-child { border-bottom: none; }
+    .podcast-item:hover { background: rgba(249,115,22,0.1); cursor: pointer; }
+    .podcast-item.active { background: rgba(249,115,22,0.15); border-left: 3px solid #f97316; }
     .podcast-info { flex: 1; }
     .podcast-name { font-weight: 500; }
     .podcast-meta { font-size: 0.8rem; color: #a1a1aa; }
+    .main-player {
+      background: rgba(0,0,0,0.3);
+      border-radius: 12px;
+      padding: 20px;
+      margin-bottom: 20px;
+    }
+    .main-player.empty { display: none; }
+    .now-playing { font-size: 0.85rem; color: #a1a1aa; margin-bottom: 8px; }
+    .now-playing-title { color: #f97316; font-weight: 600; font-size: 1.1rem; margin-bottom: 12px; }
+    .main-player audio { width: 100%; }
+    .play-icon { margin-right: 8px; opacity: 0.5; }
+    .podcast-item:hover .play-icon { opacity: 1; }
     .status-badge {
       display: inline-block;
       padding: 4px 12px;
@@ -303,6 +317,11 @@
 
     <div class="card">
       <h2>Generated Podcasts</h2>
+      <div id="mainPlayer" class="main-player empty">
+        <div class="now-playing">Now Playing</div>
+        <div class="now-playing-title" id="nowPlayingTitle"></div>
+        <audio id="mainAudio" controls></audio>
+      </div>
       <div id="podcastsList">
         <p style="color: #a1a1aa;">Loading...</p>
       </div>
@@ -348,6 +367,26 @@
       }
     }
 
+    // Play podcast in main player
+    function playPodcast(url, filename) {
+      const mainPlayer = document.getElementById('mainPlayer');
+      const mainAudio = document.getElementById('mainAudio');
+      const nowPlayingTitle = document.getElementById('nowPlayingTitle');
+
+      mainPlayer.classList.remove('empty');
+      nowPlayingTitle.textContent = filename;
+      mainAudio.src = url;
+      mainAudio.play();
+
+      // Update active state
+      document.querySelectorAll('.podcast-item').forEach(item => {
+        item.classList.remove('active');
+        if (item.dataset.url === url) {
+          item.classList.add('active');
+        }
+      });
+    }
+
     // Load podcasts list
     async function loadPodcasts() {
       const listEl = document.getElementById('podcastsList');
@@ -362,12 +401,14 @@
 
         listEl.innerHTML = `<ul class="podcast-list">
           ${data.podcasts.map(p => `
-            <li class="podcast-item">
+            <li class="podcast-item" data-url="${API_BASE}${p.url}" onclick="playPodcast('${API_BASE}${p.url}', '${p.filename}')">
               <div class="podcast-info">
-                <div class="podcast-name">${p.filename}</div>
-                <div class="podcast-meta">${formatBytes(p.size)} - ${new Date(p.createdAt).toLocaleString()}</div>
+                <span class="play-icon">&#9658;</span>
+                <div style="display: inline-block;">
+                  <div class="podcast-name">${p.filename}</div>
+                  <div class="podcast-meta">${formatBytes(p.size)} - ${new Date(p.createdAt).toLocaleString()}</div>
+                </div>
               </div>
-              <audio controls src="${API_BASE}${p.url}"></audio>
             </li>
           `).join('')}
         </ul>`;
