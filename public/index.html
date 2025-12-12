@@ -272,12 +272,18 @@
       <form id="generateForm">
         <div class="form-group">
           <label>Text to Convert</label>
-          <textarea id="text" placeholder="Enter the text you want to convert to speech...">Welcome to the Podcast Generator! This is a test of our text-to-speech capabilities. You can use this API to create podcast episodes from any text content.</textarea>
+          <textarea id="text" placeholder="Enter the text you want to convert to speech...">Welcome to the Podcast Generator API, powered by OpenAI's Text-to-Speech technology. This application uses the TTS-1 model to convert your written content into natural-sounding audio.
+
+Behind the scenes, we're using Node.js with Express to handle API requests, and the OpenAI SDK to generate speech. You can choose from six distinct AI voices: Alloy for a neutral tone, Echo for warmth, Fable for dramatic flair, Nova for an upbeat style, Onyx for authority, and Shimmer for clarity.
+
+Each generated podcast is saved as an MP3 file with embedded ID3 metadata, including the voice used, character count, and generation cost. The current rate is fifteen dollars per million characters, making it an affordable solution for content creators.
+
+This interface was built with vanilla HTML, CSS, and JavaScript, featuring a modern dark theme with orange accents. Give it a try by clicking Generate Podcast!</textarea>
         </div>
         <div class="row">
           <div class="form-group">
             <label>Episode Title</label>
-            <input type="text" id="title" placeholder="my-podcast-episode" value="test-episode">
+            <input type="text" id="title" placeholder="my-podcast-episode" value="tech-overview">
           </div>
         </div>
         <div class="form-group">
