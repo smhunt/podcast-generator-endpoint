@@ -55,11 +55,13 @@
       color: #e4e4e7;
       font-size: 1rem;
       font-family: inherit;
+      caret-color: transparent;
     }
     textarea { min-height: 120px; resize: vertical; }
     textarea:focus, select:focus, input:focus {
       outline: none;
       border-color: #f97316;
+      caret-color: #f97316;
     }
     .btn {
       background: linear-gradient(90deg, #f97316, #ea580c);
@@ -135,6 +137,25 @@
     }
     .status-online { background: rgba(34,197,94,0.2); color: #22c55e; }
     .status-offline { background: rgba(239,68,68,0.2); color: #ef4444; }
+    .stats-bar {
+      display: flex;
+      gap: 24px;
+      justify-content: center;
+      margin-top: 12px;
+      font-size: 0.85rem;
+      color: #a1a1aa;
+    }
+    .stat-item { display: flex; align-items: center; gap: 6px; }
+    .stat-value { color: #f97316; font-weight: 600; }
+    .cost-badge {
+      background: rgba(249,115,22,0.15);
+      color: #fb923c;
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-size: 0.8rem;
+      font-weight: 500;
+      margin-left: 8px;
+    }
     .endpoints {
       display: grid;
       gap: 12px;
@@ -178,6 +199,11 @@
       <p class="subtitle">Generate podcasts from text using AI voices</p>
       <div style="margin-top: 16px;">
         <span id="status" class="status-badge status-offline">Checking...</span>
+      </div>
+      <div class="stats-bar" id="statsBar">
+        <div class="stat-item">Generations: <span class="stat-value" id="statGenerations">0</span></div>
+        <div class="stat-item">Characters: <span class="stat-value" id="statCharacters">0</span></div>
+        <div class="stat-item">Session Cost: <span class="stat-value" id="statCost">$0.0000</span></div>
       </div>
     </header>
 
@@ -351,12 +377,13 @@
         if (data.success) {
           resultEl.innerHTML = `
             <div class="result success">
-              <strong>Generated successfully!</strong><br>
-              Voice: ${data.voice} | Characters: ${data.textLength}<br>
+              <strong>Generated successfully!</strong><span class="cost-badge">${data.cost.formatted}</span><br>
+              Voice: ${data.voice} | Characters: ${data.textLength} | Model: ${data.cost.model}<br>
               <audio controls src="${API_BASE}${data.audioUrl}" style="margin-top: 12px;"></audio>
             </div>
           `;
           loadPodcasts();
+          loadStats();
         } else {
           resultEl.innerHTML = `<div class="result error">Error: ${data.error}</div>`;
         }
@@ -374,9 +401,23 @@
       return (bytes / 1048576).toFixed(1) + ' MB';
     }
 
+    // Load session stats
+    async function loadStats() {
+      try {
+        const res = await fetch(`${API_BASE}/api/stats`);
+        const data = await res.json();
+        document.getElementById('statGenerations').textContent = data.totalGenerations;
+        document.getElementById('statCharacters').textContent = data.totalCharacters.toLocaleString();
+        document.getElementById('statCost').textContent = data.totalCostFormatted;
+      } catch (err) {
+        console.error('Failed to load stats:', err);
+      }
+    }
+
     // Initialize
     checkHealth();
     loadPodcasts();
+    loadStats();
     setInterval(checkHealth, 30000);
   </script>
 </body>

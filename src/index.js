@@ -2,10 +2,11 @@ import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import OpenAI from 'openai';
-import { createWriteStream } from 'fs';
+import { createWriteStream, writeFileSync } from 'fs';
 import { mkdir } from 'fs/promises';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import NodeID3 from 'node-id3';
 
 dotenv.config();
 
@@ -23,6 +24,20 @@ app.use('/audio', express.static(path.join(__dirname, '../audio')));
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
+
+// TTS Pricing (per 1M characters)
+const TTS_PRICING = {
+  'tts-1': 15.00,      // $15 per 1M chars
+  'tts-1-hd': 30.00,   // $30 per 1M chars
+};
+
+// Track session totals
+let sessionStats = {
+  totalGenerations: 0,
+  totalCharacters: 0,
+  totalCost: 0,
+  startedAt: new Date().toISOString(),
+};
 
 // Ensure audio directory exists
 await mkdir(path.join(__dirname, '../audio'), { recursive: true });
@@ -61,13 +76,42 @@ app.post('/api/generate', async (req, res) => {
 
     // Save the audio file
     const buffer = Buffer.from(await mp3.arrayBuffer());
-    const writeStream = createWriteStream(filepath);
-    writeStream.write(buffer);
-    writeStream.end();
+    writeFileSync(filepath, buffer);
+
+    // Calculate cost for metadata
+    const model = 'tts-1';
+    const costPerChar = TTS_PRICING[model] / 1_000_000;
+    const cost = text.length * costPerChar;
+
+    // Add ID3 metadata to MP3
+    const tags = {
+      title: title,
+      artist: `AI Voice: ${voice}`,
+      album: 'Podcast Generator',
+      year: new Date().getFullYear().toString(),
+      comment: {
+        language: 'eng',
+        text: `Generated with OpenAI ${model} | Voice: ${voice} | Characters: ${text.length} | Cost: $${cost.toFixed(4)}`,
+      },
+      userDefinedText: [
+        { description: 'TTS_MODEL', value: model },
+        { description: 'TTS_VOICE', value: voice },
+        { description: 'CHARACTER_COUNT', value: text.length.toString() },
+        { description: 'GENERATION_COST', value: `$${cost.toFixed(4)}` },
+        { description: 'GENERATED_AT', value: new Date().toISOString() },
+        { description: 'GENERATOR', value: 'Podcast Generator API' },
+      ],
+    };
+    NodeID3.write(tags, filepath);
 
     const audioUrl = `/audio/${filename}`;
 
-    console.log(`Podcast generated: ${audioUrl}`);
+    // Update session stats
+    sessionStats.totalGenerations++;
+    sessionStats.totalCharacters += text.length;
+    sessionStats.totalCost += cost;
+
+    console.log(`Podcast generated: ${audioUrl} | Cost: $${cost.toFixed(4)}`);
 
     res.json({
       success: true,
@@ -76,6 +120,12 @@ app.post('/api/generate', async (req, res) => {
       audioUrl,
       filename,
       textLength: text.length,
+      cost: {
+        amount: cost,
+        formatted: `$${cost.toFixed(4)}`,
+        model,
+        ratePerMillion: TTS_PRICING[model],
+      },
       generatedAt: new Date().toISOString(),
     });
   } catch (error) {
@@ -85,6 +135,14 @@ app.post('/api/generate', async (req, res) => {
       details: error.message
     });
   }
+});
+
+// Get session stats
+app.get('/api/stats', (req, res) => {
+  res.json({
+    ...sessionStats,
+    totalCostFormatted: `$${sessionStats.totalCost.toFixed(4)}`,
+  });
 });
 
 // List available voices
