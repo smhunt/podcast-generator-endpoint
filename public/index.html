@@ -1,0 +1,383 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Podcast Generator API</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+      min-height: 100vh;
+      color: #e4e4e7;
+      padding: 20px;
+    }
+    .container { max-width: 900px; margin: 0 auto; }
+    header {
+      text-align: center;
+      padding: 40px 0;
+    }
+    h1 {
+      font-size: 2.5rem;
+      background: linear-gradient(90deg, #f97316, #fb923c);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      margin-bottom: 10px;
+    }
+    .subtitle { color: #a1a1aa; font-size: 1.1rem; }
+    .card {
+      background: rgba(255,255,255,0.05);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 16px;
+      padding: 24px;
+      margin-bottom: 24px;
+      backdrop-filter: blur(10px);
+    }
+    .card h2 {
+      color: #f97316;
+      margin-bottom: 16px;
+      font-size: 1.3rem;
+    }
+    .form-group { margin-bottom: 16px; }
+    label {
+      display: block;
+      margin-bottom: 8px;
+      color: #a1a1aa;
+      font-size: 0.9rem;
+    }
+    textarea, select, input {
+      width: 100%;
+      padding: 12px;
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 8px;
+      background: rgba(0,0,0,0.3);
+      color: #e4e4e7;
+      font-size: 1rem;
+      font-family: inherit;
+    }
+    textarea { min-height: 120px; resize: vertical; }
+    textarea:focus, select:focus, input:focus {
+      outline: none;
+      border-color: #f97316;
+    }
+    .btn {
+      background: linear-gradient(90deg, #f97316, #ea580c);
+      color: white;
+      border: none;
+      padding: 14px 28px;
+      border-radius: 8px;
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: transform 0.2s, box-shadow 0.2s;
+    }
+    .btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 20px rgba(249,115,22,0.4);
+    }
+    .btn:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+      transform: none;
+    }
+    .btn-secondary {
+      background: rgba(255,255,255,0.1);
+      margin-left: 10px;
+    }
+    .voices-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+      gap: 10px;
+    }
+    .voice-option {
+      padding: 12px;
+      border: 2px solid rgba(255,255,255,0.1);
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all 0.2s;
+      text-align: center;
+    }
+    .voice-option:hover { border-color: rgba(249,115,22,0.5); }
+    .voice-option.selected {
+      border-color: #f97316;
+      background: rgba(249,115,22,0.1);
+    }
+    .voice-name { font-weight: 600; margin-bottom: 4px; }
+    .voice-desc { font-size: 0.75rem; color: #a1a1aa; }
+    .result {
+      background: rgba(0,0,0,0.3);
+      border-radius: 8px;
+      padding: 16px;
+      margin-top: 16px;
+    }
+    .result.error { border-left: 4px solid #ef4444; }
+    .result.success { border-left: 4px solid #22c55e; }
+    audio { width: 100%; margin-top: 12px; }
+    .podcast-list { list-style: none; }
+    .podcast-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px;
+      border-bottom: 1px solid rgba(255,255,255,0.1);
+    }
+    .podcast-item:last-child { border-bottom: none; }
+    .podcast-info { flex: 1; }
+    .podcast-name { font-weight: 500; }
+    .podcast-meta { font-size: 0.8rem; color: #a1a1aa; }
+    .status-badge {
+      display: inline-block;
+      padding: 4px 12px;
+      border-radius: 20px;
+      font-size: 0.8rem;
+      font-weight: 500;
+    }
+    .status-online { background: rgba(34,197,94,0.2); color: #22c55e; }
+    .status-offline { background: rgba(239,68,68,0.2); color: #ef4444; }
+    .endpoints {
+      display: grid;
+      gap: 12px;
+    }
+    .endpoint {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 12px;
+      background: rgba(0,0,0,0.2);
+      border-radius: 8px;
+    }
+    .method {
+      padding: 4px 10px;
+      border-radius: 4px;
+      font-weight: 600;
+      font-size: 0.75rem;
+    }
+    .method-get { background: #22c55e; color: white; }
+    .method-post { background: #3b82f6; color: white; }
+    .endpoint-path { font-family: monospace; color: #e4e4e7; }
+    .endpoint-desc { color: #a1a1aa; font-size: 0.85rem; margin-left: auto; }
+    .loading {
+      display: inline-block;
+      width: 20px;
+      height: 20px;
+      border: 2px solid rgba(255,255,255,0.3);
+      border-radius: 50%;
+      border-top-color: #f97316;
+      animation: spin 1s ease-in-out infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .row { display: flex; gap: 16px; }
+    .row .form-group { flex: 1; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>Podcast Generator API</h1>
+      <p class="subtitle">Generate podcasts from text using AI voices</p>
+      <div style="margin-top: 16px;">
+        <span id="status" class="status-badge status-offline">Checking...</span>
+      </div>
+    </header>
+
+    <div class="card">
+      <h2>API Endpoints</h2>
+      <div class="endpoints">
+        <div class="endpoint">
+          <span class="method method-get">GET</span>
+          <span class="endpoint-path">/health</span>
+          <span class="endpoint-desc">Health check</span>
+        </div>
+        <div class="endpoint">
+          <span class="method method-get">GET</span>
+          <span class="endpoint-path">/api/voices</span>
+          <span class="endpoint-desc">List available voices</span>
+        </div>
+        <div class="endpoint">
+          <span class="method method-post">POST</span>
+          <span class="endpoint-path">/api/generate</span>
+          <span class="endpoint-desc">Generate podcast</span>
+        </div>
+        <div class="endpoint">
+          <span class="method method-get">GET</span>
+          <span class="endpoint-path">/api/podcasts</span>
+          <span class="endpoint-desc">List generated podcasts</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Generate Podcast</h2>
+      <form id="generateForm">
+        <div class="form-group">
+          <label>Text to Convert</label>
+          <textarea id="text" placeholder="Enter the text you want to convert to speech...">Welcome to the Podcast Generator! This is a test of our text-to-speech capabilities. You can use this API to create podcast episodes from any text content.</textarea>
+        </div>
+        <div class="row">
+          <div class="form-group">
+            <label>Episode Title</label>
+            <input type="text" id="title" placeholder="my-podcast-episode" value="test-episode">
+          </div>
+        </div>
+        <div class="form-group">
+          <label>Select Voice</label>
+          <div class="voices-grid" id="voicesGrid">
+            <div class="voice-option" data-voice="alloy">
+              <div class="voice-name">Alloy</div>
+              <div class="voice-desc">Neutral, balanced</div>
+            </div>
+            <div class="voice-option" data-voice="echo">
+              <div class="voice-name">Echo</div>
+              <div class="voice-desc">Warm, conversational</div>
+            </div>
+            <div class="voice-option" data-voice="fable">
+              <div class="voice-name">Fable</div>
+              <div class="voice-desc">Expressive, dramatic</div>
+            </div>
+            <div class="voice-option selected" data-voice="nova">
+              <div class="voice-name">Nova</div>
+              <div class="voice-desc">Friendly, upbeat</div>
+            </div>
+            <div class="voice-option" data-voice="onyx">
+              <div class="voice-name">Onyx</div>
+              <div class="voice-desc">Deep, authoritative</div>
+            </div>
+            <div class="voice-option" data-voice="shimmer">
+              <div class="voice-name">Shimmer</div>
+              <div class="voice-desc">Clear, professional</div>
+            </div>
+          </div>
+        </div>
+        <button type="submit" class="btn" id="generateBtn">Generate Podcast</button>
+        <button type="button" class="btn btn-secondary" onclick="loadPodcasts()">Refresh List</button>
+      </form>
+      <div id="generateResult"></div>
+    </div>
+
+    <div class="card">
+      <h2>Generated Podcasts</h2>
+      <div id="podcastsList">
+        <p style="color: #a1a1aa;">Loading...</p>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const API_BASE = window.location.origin;
+    let selectedVoice = 'nova';
+
+    // Voice selection
+    document.querySelectorAll('.voice-option').forEach(el => {
+      el.addEventListener('click', () => {
+        document.querySelectorAll('.voice-option').forEach(v => v.classList.remove('selected'));
+        el.classList.add('selected');
+        selectedVoice = el.dataset.voice;
+      });
+    });
+
+    // Check API health
+    async function checkHealth() {
+      const statusEl = document.getElementById('status');
+      try {
+        const res = await fetch(`${API_BASE}/health`);
+        if (res.ok) {
+          statusEl.textContent = 'Online';
+          statusEl.className = 'status-badge status-online';
+        } else {
+          throw new Error();
+        }
+      } catch {
+        statusEl.textContent = 'Offline';
+        statusEl.className = 'status-badge status-offline';
+      }
+    }
+
+    // Load podcasts list
+    async function loadPodcasts() {
+      const listEl = document.getElementById('podcastsList');
+      try {
+        const res = await fetch(`${API_BASE}/api/podcasts`);
+        const data = await res.json();
+
+        if (data.podcasts.length === 0) {
+          listEl.innerHTML = '<p style="color: #a1a1aa;">No podcasts generated yet. Create your first one above!</p>';
+          return;
+        }
+
+        listEl.innerHTML = `<ul class="podcast-list">
+          ${data.podcasts.map(p => `
+            <li class="podcast-item">
+              <div class="podcast-info">
+                <div class="podcast-name">${p.filename}</div>
+                <div class="podcast-meta">${formatBytes(p.size)} - ${new Date(p.createdAt).toLocaleString()}</div>
+              </div>
+              <audio controls src="${API_BASE}${p.url}"></audio>
+            </li>
+          `).join('')}
+        </ul>`;
+      } catch (err) {
+        listEl.innerHTML = '<p style="color: #ef4444;">Failed to load podcasts</p>';
+      }
+    }
+
+    // Generate podcast
+    document.getElementById('generateForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const btn = document.getElementById('generateBtn');
+      const resultEl = document.getElementById('generateResult');
+
+      const text = document.getElementById('text').value.trim();
+      const title = document.getElementById('title').value.trim() || 'podcast';
+
+      if (!text) {
+        resultEl.innerHTML = '<div class="result error">Please enter some text to convert.</div>';
+        return;
+      }
+
+      btn.disabled = true;
+      btn.innerHTML = '<span class="loading"></span> Generating...';
+      resultEl.innerHTML = '';
+
+      try {
+        const res = await fetch(`${API_BASE}/api/generate`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ text, title, voice: selectedVoice })
+        });
+
+        const data = await res.json();
+
+        if (data.success) {
+          resultEl.innerHTML = `
+            <div class="result success">
+              <strong>Generated successfully!</strong><br>
+              Voice: ${data.voice} | Characters: ${data.textLength}<br>
+              <audio controls src="${API_BASE}${data.audioUrl}" style="margin-top: 12px;"></audio>
+            </div>
+          `;
+          loadPodcasts();
+        } else {
+          resultEl.innerHTML = `<div class="result error">Error: ${data.error}</div>`;
+        }
+      } catch (err) {
+        resultEl.innerHTML = `<div class="result error">Failed to generate podcast: ${err.message}</div>`;
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'Generate Podcast';
+      }
+    });
+
+    function formatBytes(bytes) {
+      if (bytes < 1024) return bytes + ' B';
+      if (bytes < 1048576) return (bytes / 1024).toFixed(1) + ' KB';
+      return (bytes / 1048576).toFixed(1) + ' MB';
+    }
+
+    // Initialize
+    checkHealth();
+    loadPodcasts();
+    setInterval(checkHealth, 30000);
+  </script>
+</body>
+</html>

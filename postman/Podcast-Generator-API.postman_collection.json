@@ -1,0 +1,143 @@
+{
+  "info": {
+    "_postman_id": "podcast-generator-api",
+    "name": "Podcast Generator API",
+    "description": "API for generating podcasts from text using OpenAI TTS",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://10.10.10.24:3087",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "Health Check",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/health",
+          "host": ["{{baseUrl}}"],
+          "path": ["health"]
+        },
+        "description": "Check if the API server is running and healthy"
+      },
+      "response": [
+        {
+          "name": "Success",
+          "status": "OK",
+          "code": 200,
+          "body": "{\n  \"status\": \"ok\",\n  \"timestamp\": \"2025-12-12T19:17:29.413Z\"\n}"
+        }
+      ]
+    },
+    {
+      "name": "List Voices",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/api/voices",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "voices"]
+        },
+        "description": "Get a list of all available TTS voices"
+      },
+      "response": [
+        {
+          "name": "Success",
+          "status": "OK",
+          "code": 200,
+          "body": "{\n  \"voices\": [\n    {\"id\": \"alloy\", \"name\": \"Alloy\", \"description\": \"Neutral and balanced\"},\n    {\"id\": \"echo\", \"name\": \"Echo\", \"description\": \"Warm and conversational\"},\n    {\"id\": \"fable\", \"name\": \"Fable\", \"description\": \"Expressive and dramatic\"},\n    {\"id\": \"onyx\", \"name\": \"Onyx\", \"description\": \"Deep and authoritative\"},\n    {\"id\": \"nova\", \"name\": \"Nova\", \"description\": \"Friendly and upbeat\"},\n    {\"id\": \"shimmer\", \"name\": \"Shimmer\", \"description\": \"Clear and professional\"}\n  ]\n}"
+        }
+      ]
+    },
+    {
+      "name": "Generate Podcast",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"text\": \"Welcome to our podcast! Today we're discussing the future of AI and how it's transforming the way we create content. Let's dive in!\",\n  \"title\": \"ai-future-episode-1\",\n  \"voice\": \"nova\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/generate",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "generate"]
+        },
+        "description": "Generate a podcast audio file from text.\n\n**Parameters:**\n- `text` (required): The text to convert to speech\n- `title` (optional): Episode title, used in filename (default: \"podcast\")\n- `voice` (optional): Voice ID - alloy, echo, fable, onyx, nova, shimmer (default: \"alloy\")"
+      },
+      "response": [
+        {
+          "name": "Success",
+          "status": "OK",
+          "code": 200,
+          "body": "{\n  \"success\": true,\n  \"title\": \"ai-future-episode-1\",\n  \"voice\": \"nova\",\n  \"audioUrl\": \"/audio/ai_future_episode_1_1702406249000.mp3\",\n  \"filename\": \"ai_future_episode_1_1702406249000.mp3\",\n  \"textLength\": 127,\n  \"generatedAt\": \"2025-12-12T19:17:29.000Z\"\n}"
+        },
+        {
+          "name": "Error - Missing Text",
+          "status": "Bad Request",
+          "code": 400,
+          "body": "{\n  \"error\": \"Text is required\"\n}"
+        },
+        {
+          "name": "Error - No API Key",
+          "status": "Internal Server Error",
+          "code": 500,
+          "body": "{\n  \"error\": \"OpenAI API key not configured\"\n}"
+        }
+      ]
+    },
+    {
+      "name": "List Podcasts",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/api/podcasts",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "podcasts"]
+        },
+        "description": "Get a list of all generated podcast audio files"
+      },
+      "response": [
+        {
+          "name": "Success",
+          "status": "OK",
+          "code": 200,
+          "body": "{\n  \"podcasts\": [\n    {\n      \"filename\": \"ai_future_episode_1_1702406249000.mp3\",\n      \"url\": \"/audio/ai_future_episode_1_1702406249000.mp3\",\n      \"size\": 45678,\n      \"createdAt\": \"2025-12-12T19:17:29.000Z\"\n    }\n  ]\n}"
+        }
+      ]
+    },
+    {
+      "name": "Get Audio File",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/audio/:filename",
+          "host": ["{{baseUrl}}"],
+          "path": ["audio", ":filename"],
+          "variable": [
+            {
+              "key": "filename",
+              "value": "example_1702406249000.mp3",
+              "description": "The filename of the audio file to retrieve"
+            }
+          ]
+        },
+        "description": "Download or stream a generated podcast audio file"
+      },
+      "response": []
+    }
+  ]
+}

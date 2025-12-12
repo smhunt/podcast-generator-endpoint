@@ -16,6 +16,7 @@ const PORT = process.env.PORT || 3087;
 // Middleware
 app.use(cors());
 app.use(express.json({ limit: '10mb' }));
+app.use(express.static(path.join(__dirname, '../public')));
 app.use('/audio', express.static(path.join(__dirname, '../audio')));
 
 // Initialize OpenAI
@@ -131,6 +132,7 @@ app.listen(PORT, '0.0.0.0', () => {
   console.log(`\n🎙️  Podcast Generator API running at:`);
   console.log(`   Local:   http://localhost:${PORT}`);
   console.log(`   Network: http://10.10.10.24:${PORT}`);
+  console.log(`\n🌐 Web UI: http://10.10.10.24:${PORT}`);
   console.log(`\n📡 Endpoints:`);
   console.log(`   POST /api/generate - Generate podcast from text`);
   console.log(`   GET  /api/voices   - List available voices`);
