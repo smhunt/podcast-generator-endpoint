@@ -2,6 +2,18 @@
 
 All notable changes to the Podcast Generator API will be documented in this file.
 
+## [1.5.0] - 2025-12-12
+
+### Added
+- Download button for each podcast in the list
+- Individual audio players for each past podcast
+- Lazy loading for audio files (only loads when played)
+- Single-audio playback (playing one pauses all others)
+
+### Changed
+- Podcast list now shows header with play info and download button
+- Audio uses `preload="none"` for better performance
+
 ## [1.4.0] - 2025-12-12
 
 ### Added
