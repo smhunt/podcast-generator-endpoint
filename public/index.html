@@ -625,6 +625,13 @@ Built with care by Ecoworks Webb Architecture. Try it now by clicking Generate P
       }
     }
 
+    // Lazy load audio - only load src when user interacts
+    function lazyLoadAudio(audio) {
+      if (!audio.src && audio.dataset.src) {
+        audio.src = audio.dataset.src;
+      }
+    }
+
     // Stop all audio players
     function stopAllAudio() {
       document.querySelectorAll('audio').forEach(audio => {
@@ -688,10 +695,19 @@ Built with care by Ecoworks Webb Architecture. Try it now by clicking Generate P
                   <div class="podcast-meta">${formatBytes(p.size)} - ${new Date(p.createdAt).toLocaleString()}</div>
                 </div>
               </div>
-              <audio controls src="${API_BASE}${p.url}" style="width: 100%; margin-top: 8px;"></audio>
+              <audio controls preload="none" data-src="${API_BASE}${p.url}" style="width: 100%; margin-top: 8px;" onclick="lazyLoadAudio(this)"></audio>
             </li>
           `).join('')}
         </ul>`;
+
+        // Add lazy load listeners to all audio elements
+        listEl.querySelectorAll('audio[data-src]').forEach(audio => {
+          audio.addEventListener('play', function() {
+            if (!this.src && this.dataset.src) {
+              this.src = this.dataset.src;
+            }
+          });
+        });
       } catch (err) {
         listEl.innerHTML = '<p style="color: #ef4444;">Failed to load podcasts</p>';
       }
