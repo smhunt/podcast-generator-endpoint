@@ -2,11 +2,16 @@ import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import OpenAI from 'openai';
-import { createWriteStream, writeFileSync } from 'fs';
+import { createWriteStream, writeFileSync, existsSync } from 'fs';
 import { mkdir } from 'fs/promises';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import NodeID3 from 'node-id3';
+import { exec } from 'child_process';
+import { promisify } from 'util';
+import os from 'os';
+
+const execAsync = promisify(exec);
 
 dotenv.config();
 
@@ -239,14 +244,137 @@ app.get('/api/podcasts', async (req, res) => {
   }
 });
 
+// Get system info for platform detection
+app.get('/api/system-info', async (req, res) => {
+  const platform = os.platform();
+  const isMac = platform === 'darwin';
+
+  // Detect available players on Mac
+  const availablePlayers = [];
+
+  if (isMac) {
+    // Always available - default app handler
+    availablePlayers.push({
+      id: 'default',
+      name: 'Default App',
+      description: 'Opens with your default audio player',
+      available: true,
+    });
+
+    // Check for VLC
+    try {
+      await execAsync('mdfind "kMDItemKind == \'Application\'" | grep -i VLC.app');
+      availablePlayers.push({
+        id: 'vlc',
+        name: 'VLC',
+        description: 'Add to VLC playlist queue',
+        available: true,
+      });
+    } catch {
+      availablePlayers.push({
+        id: 'vlc',
+        name: 'VLC',
+        description: 'Not installed',
+        available: false,
+      });
+    }
+
+    // Apple Music is always available on Mac
+    availablePlayers.push({
+      id: 'apple-music',
+      name: 'Apple Music',
+      description: 'Add to Up Next queue',
+      available: true,
+    });
+  }
+
+  res.json({
+    platform,
+    isMac,
+    availablePlayers,
+    supportsAutoOpen: isMac,
+  });
+});
+
+// Open podcast in a player (Mac only)
+app.post('/api/open-in-player', async (req, res) => {
+  const { filename, player = 'default' } = req.body;
+
+  if (!filename) {
+    return res.status(400).json({ error: 'Filename is required' });
+  }
+
+  const platform = os.platform();
+  if (platform !== 'darwin') {
+    return res.status(400).json({ error: 'Auto-open is only supported on macOS' });
+  }
+
+  const filepath = path.join(__dirname, '../audio', filename);
+
+  if (!existsSync(filepath)) {
+    return res.status(404).json({ error: 'Podcast file not found' });
+  }
+
+  try {
+    let command;
+    let result = { success: true, player, filename };
+
+    switch (player) {
+      case 'vlc':
+        // Open in VLC and add to playlist queue
+        // First check if VLC is running, if so enqueue, otherwise open
+        try {
+          await execAsync('pgrep -x VLC');
+          // VLC is running, enqueue the file
+          command = `open -a VLC --args --playlist-enqueue "${filepath}"`;
+        } catch {
+          // VLC not running, just open normally
+          command = `open -a VLC "${filepath}"`;
+        }
+        break;
+
+      case 'apple-music':
+        // Use AppleScript to add to Apple Music "Up Next" queue
+        const appleScript = `
+          tell application "Music"
+            activate
+            set theFile to POSIX file "${filepath}"
+            play theFile
+          end tell
+        `;
+        command = `osascript -e '${appleScript.replace(/'/g, "'\\''")}'`;
+        break;
+
+      case 'default':
+      default:
+        // Open with default application
+        command = `open "${filepath}"`;
+        break;
+    }
+
+    await execAsync(command);
+    console.log(`Opened podcast in ${player}: ${filename}`);
+
+    res.json(result);
+  } catch (error) {
+    console.error(`Error opening podcast in ${player}:`, error);
+    res.status(500).json({
+      error: `Failed to open podcast in ${player}`,
+      details: error.message,
+    });
+  }
+});
+
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`\n🎙️  Podcast Generator API running at:`);
   console.log(`   Local:   http://localhost:${PORT}`);
   console.log(`   Network: http://10.10.10.24:${PORT}`);
   console.log(`\n🌐 Web UI: http://10.10.10.24:${PORT}`);
   console.log(`\n📡 Endpoints:`);
-  console.log(`   POST /api/generate - Generate podcast from text`);
-  console.log(`   GET  /api/voices   - List available voices`);
-  console.log(`   GET  /api/podcasts - List generated podcasts`);
-  console.log(`   GET  /health       - Health check\n`);
+  console.log(`   POST /api/generate       - Generate podcast from text`);
+  console.log(`   GET  /api/voices         - List available voices`);
+  console.log(`   GET  /api/podcasts       - List generated podcasts`);
+  console.log(`   GET  /api/system-info    - Get platform info`);
+  console.log(`   POST /api/open-in-player - Open podcast in player (macOS)`);
+  console.log(`   GET  /health             - Health check\n`);
 });

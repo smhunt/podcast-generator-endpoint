@@ -398,6 +398,113 @@
       .voice-option { padding: 8px 6px; }
       .stats-bar { font-size: 0.8rem; }
     }
+
+    /* Auto-open settings styles */
+    .settings-section {
+      background: rgba(0,0,0,0.2);
+      border-radius: 8px;
+      padding: 16px;
+      margin-top: 16px;
+    }
+    .settings-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 12px;
+    }
+    .settings-title {
+      font-size: 0.95rem;
+      color: #e4e4e7;
+      font-weight: 500;
+    }
+    .toggle-switch {
+      position: relative;
+      width: 48px;
+      height: 26px;
+    }
+    .toggle-switch input {
+      opacity: 0;
+      width: 0;
+      height: 0;
+    }
+    .toggle-slider {
+      position: absolute;
+      cursor: pointer;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background-color: rgba(255,255,255,0.1);
+      transition: 0.3s;
+      border-radius: 26px;
+    }
+    .toggle-slider:before {
+      position: absolute;
+      content: "";
+      height: 20px;
+      width: 20px;
+      left: 3px;
+      bottom: 3px;
+      background-color: #a1a1aa;
+      transition: 0.3s;
+      border-radius: 50%;
+    }
+    .toggle-switch input:checked + .toggle-slider {
+      background-color: rgba(249,115,22,0.3);
+    }
+    .toggle-switch input:checked + .toggle-slider:before {
+      transform: translateX(22px);
+      background-color: #f97316;
+    }
+    .player-select {
+      display: none;
+      margin-top: 12px;
+    }
+    .player-select.visible { display: block; }
+    .player-options {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+      gap: 8px;
+      margin-top: 8px;
+    }
+    .player-option {
+      padding: 12px;
+      border: 2px solid rgba(255,255,255,0.1);
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all 0.2s;
+      text-align: center;
+    }
+    .player-option:hover:not(.disabled) { border-color: rgba(249,115,22,0.5); }
+    .player-option.selected {
+      border-color: #f97316;
+      background: rgba(249,115,22,0.1);
+    }
+    .player-option.disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
+    .player-name { font-weight: 600; font-size: 0.9rem; margin-bottom: 4px; }
+    .player-desc { font-size: 0.7rem; color: #a1a1aa; }
+    .platform-badge {
+      display: inline-block;
+      padding: 3px 8px;
+      border-radius: 4px;
+      font-size: 0.7rem;
+      font-weight: 500;
+      margin-left: 8px;
+    }
+    .platform-mac { background: rgba(34,197,94,0.2); color: #22c55e; }
+    .platform-unavailable { background: rgba(239,68,68,0.2); color: #ef4444; }
+    .auto-open-notice {
+      font-size: 0.8rem;
+      color: #a1a1aa;
+      margin-top: 8px;
+      padding: 8px;
+      background: rgba(249,115,22,0.1);
+      border-radius: 6px;
+      border-left: 3px solid #f97316;
+    }
   </style>
 </head>
 <body>
@@ -509,6 +616,30 @@ Built with care by Ecoworks Webb Architecture. Try it now by clicking Generate P
             </div>
           </div>
         </div>
+
+        <!-- Auto-open Settings -->
+        <div class="settings-section" id="autoOpenSettings" style="display: none;">
+          <div class="settings-header">
+            <div>
+              <span class="settings-title">Auto-open in Podcast Player</span>
+              <span id="platformBadge" class="platform-badge"></span>
+            </div>
+            <label class="toggle-switch">
+              <input type="checkbox" id="autoOpenToggle">
+              <span class="toggle-slider"></span>
+            </label>
+          </div>
+          <div class="player-select" id="playerSelect">
+            <label style="font-size: 0.85rem; color: #a1a1aa;">Select Player:</label>
+            <div class="player-options" id="playerOptions">
+              <!-- Player options will be populated dynamically -->
+            </div>
+            <div class="auto-open-notice" id="autoOpenNotice">
+              After generation, the podcast will automatically open in your selected player's queue.
+            </div>
+          </div>
+        </div>
+
         <button type="submit" class="btn" id="generateBtn">Generate Podcast</button>
         <button type="button" class="btn btn-secondary" onclick="loadPodcasts()">Refresh List</button>
       </form>
@@ -574,6 +705,11 @@ Built with care by Ecoworks Webb Architecture. Try it now by clicking Generate P
     const API_BASE = window.location.origin;
     const TTS_RATE = 15; // $15 per 1M characters
     let selectedVoice = 'nova';
+
+    // Auto-open settings
+    let autoOpenEnabled = localStorage.getItem('autoOpenEnabled') === 'true';
+    let selectedPlayer = localStorage.getItem('selectedPlayer') || 'default';
+    let systemInfo = null;
 
     // Voice selection
     document.querySelectorAll('.voice-option').forEach(el => {
@@ -701,6 +837,7 @@ Built with care by Ecoworks Webb Architecture. Try it now by clicking Generate P
           return;
         }
 
+        const showOpenBtn = systemInfo?.supportsAutoOpen;
         listEl.innerHTML = `<ul class="podcast-list">
           ${data.podcasts.map(p => `
             <li class="podcast-item" data-url="${API_BASE}${p.url}">
@@ -712,9 +849,14 @@ Built with care by Ecoworks Webb Architecture. Try it now by clicking Generate P
                     <div class="podcast-meta">${formatBytes(p.size)} - ${new Date(p.createdAt).toLocaleString()}</div>
                   </div>
                 </div>
-                <a href="${API_BASE}${p.url}" download="${p.filename}" class="download-btn">
-                  <span>&#8595;</span> Download
-                </a>
+                <div style="display: flex; gap: 8px;">
+                  ${showOpenBtn ? `<button onclick="openInPlayer('${p.filename}')" class="download-btn" title="Open in ${systemInfo.availablePlayers?.find(pl => pl.id === selectedPlayer)?.name || 'player'}">
+                    <span>&#9654;</span> Open
+                  </button>` : ''}
+                  <a href="${API_BASE}${p.url}" download="${p.filename}" class="download-btn">
+                    <span>&#8595;</span> Download
+                  </a>
+                </div>
               </div>
               <audio controls preload="none" data-src="${API_BASE}${p.url}" style="width: 100%;" onclick="lazyLoadAudio(this)"></audio>
             </li>
@@ -771,6 +913,9 @@ Built with care by Ecoworks Webb Architecture. Try it now by clicking Generate P
 
         if (data.success) {
           const m = data.metadata;
+          const autoOpenStatus = autoOpenEnabled && systemInfo?.supportsAutoOpen
+            ? `<div style="margin-top: 12px; font-size: 0.85rem; color: #22c55e;">Opening in ${systemInfo.availablePlayers.find(p => p.id === selectedPlayer)?.name || 'player'}...</div>`
+            : '';
           resultEl.innerHTML = `
             <div class="result success">
               <strong>Generated successfully!</strong><span class="cost-badge">${m.cost.formatted}</span>
@@ -801,10 +946,16 @@ Built with care by Ecoworks Webb Architecture. Try it now by clicking Generate P
                 </div>
               </div>
               <audio controls src="${API_BASE}${data.audioUrl}" style="margin-top: 12px;"></audio>
+              ${autoOpenStatus}
             </div>
           `;
           loadPodcasts();
           loadStats();
+
+          // Auto-open in player if enabled
+          if (data.filename) {
+            openInPlayer(data.filename);
+          }
         } else {
           resultEl.innerHTML = `<div class="result error">Error: ${data.error}</div>`;
         }
@@ -841,10 +992,109 @@ Built with care by Ecoworks Webb Architecture. Try it now by clicking Generate P
     // Set current year
     document.getElementById('currentYear').textContent = new Date().getFullYear();
 
+    // Load system info for auto-open feature
+    async function loadSystemInfo() {
+      try {
+        const res = await fetch(`${API_BASE}/api/system-info`);
+        systemInfo = await res.json();
+
+        const settingsSection = document.getElementById('autoOpenSettings');
+        const platformBadge = document.getElementById('platformBadge');
+        const playerOptions = document.getElementById('playerOptions');
+        const autoOpenToggle = document.getElementById('autoOpenToggle');
+        const playerSelect = document.getElementById('playerSelect');
+
+        if (systemInfo.supportsAutoOpen) {
+          // Show settings section
+          settingsSection.style.display = 'block';
+          platformBadge.textContent = 'macOS';
+          platformBadge.className = 'platform-badge platform-mac';
+
+          // Populate player options
+          playerOptions.innerHTML = systemInfo.availablePlayers.map(player => `
+            <div class="player-option ${player.available ? '' : 'disabled'} ${player.id === selectedPlayer ? 'selected' : ''}"
+                 data-player="${player.id}"
+                 ${player.available ? '' : 'title="Not installed"'}>
+              <div class="player-name">${player.name}</div>
+              <div class="player-desc">${player.description}</div>
+            </div>
+          `).join('');
+
+          // Add click handlers for player options
+          playerOptions.querySelectorAll('.player-option:not(.disabled)').forEach(el => {
+            el.addEventListener('click', () => {
+              playerOptions.querySelectorAll('.player-option').forEach(p => p.classList.remove('selected'));
+              el.classList.add('selected');
+              selectedPlayer = el.dataset.player;
+              localStorage.setItem('selectedPlayer', selectedPlayer);
+              updateAutoOpenNotice();
+            });
+          });
+
+          // Set toggle state from localStorage
+          autoOpenToggle.checked = autoOpenEnabled;
+          if (autoOpenEnabled) {
+            playerSelect.classList.add('visible');
+          }
+
+          // Handle toggle change
+          autoOpenToggle.addEventListener('change', () => {
+            autoOpenEnabled = autoOpenToggle.checked;
+            localStorage.setItem('autoOpenEnabled', autoOpenEnabled);
+            playerSelect.classList.toggle('visible', autoOpenEnabled);
+          });
+
+          updateAutoOpenNotice();
+        } else {
+          // Hide settings on non-Mac platforms
+          settingsSection.style.display = 'none';
+        }
+      } catch (err) {
+        console.error('Failed to load system info:', err);
+      }
+    }
+
+    // Update the notice text based on selected player
+    function updateAutoOpenNotice() {
+      const notice = document.getElementById('autoOpenNotice');
+      const playerName = systemInfo?.availablePlayers?.find(p => p.id === selectedPlayer)?.name || 'your player';
+
+      if (selectedPlayer === 'vlc') {
+        notice.textContent = `After generation, the podcast will be added to VLC's playlist queue.`;
+      } else if (selectedPlayer === 'apple-music') {
+        notice.textContent = `After generation, the podcast will start playing in Apple Music.`;
+      } else {
+        notice.textContent = `After generation, the podcast will open in your default audio application.`;
+      }
+    }
+
+    // Open podcast in selected player
+    async function openInPlayer(filename) {
+      if (!autoOpenEnabled || !systemInfo?.supportsAutoOpen) return;
+
+      try {
+        const res = await fetch(`${API_BASE}/api/open-in-player`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ filename, player: selectedPlayer })
+        });
+
+        const data = await res.json();
+        if (data.success) {
+          console.log(`Opened ${filename} in ${selectedPlayer}`);
+        } else {
+          console.error('Failed to open in player:', data.error);
+        }
+      } catch (err) {
+        console.error('Error opening in player:', err);
+      }
+    }
+
     // Initialize
     checkHealth();
     loadPodcasts();
     loadStats();
+    loadSystemInfo();
     setInterval(checkHealth, 30000);
   </script>
 </body>
