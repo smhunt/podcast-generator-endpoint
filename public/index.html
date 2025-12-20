@@ -4,138 +4,361 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Podcast Generator API</title>
+  <!-- Clerk JS SDK -->
+  <script
+    async
+    crossorigin="anonymous"
+    data-clerk-publishable-key="pk_test_YXNzdXJlZC1maXJlZmx5LTU3LmNsZXJrLmFjY291bnRzLmRldiQ"
+    src="https://assured-firefly-57.clerk.accounts.dev/npm/@clerk/clerk-js@latest/dist/clerk.browser.js"
+    type="text/javascript"
+  ></script>
   <style>
+    :root {
+      --background: #ffffff;
+      --foreground: #0a0a0a;
+      --card: #ffffff;
+      --card-foreground: #0a0a0a;
+      --primary: #18181b;
+      --primary-foreground: #fafafa;
+      --secondary: #f4f4f5;
+      --secondary-foreground: #18181b;
+      --muted: #f4f4f5;
+      --muted-foreground: #71717a;
+      --accent: #f97316;
+      --accent-foreground: #ffffff;
+      --destructive: #ef4444;
+      --border: #e4e4e7;
+      --input: #e4e4e7;
+      --ring: #a1a1aa;
+      --radius: 0.625rem;
+      --success: #22c55e;
+    }
+
+    .dark {
+      --background: #0a0a0a;
+      --foreground: #fafafa;
+      --card: #18181b;
+      --card-foreground: #fafafa;
+      --primary: #fafafa;
+      --primary-foreground: #18181b;
+      --secondary: #27272a;
+      --secondary-foreground: #fafafa;
+      --muted: #27272a;
+      --muted-foreground: #a1a1aa;
+      --border: rgba(255,255,255,0.1);
+      --input: rgba(255,255,255,0.15);
+      --ring: #71717a;
+    }
+
     * { box-sizing: border-box; margin: 0; padding: 0; }
+
     body {
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-      background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+      background: var(--background);
       min-height: 100vh;
-      color: #e4e4e7;
-      padding: 20px;
+      color: var(--foreground);
+      line-height: 1.5;
     }
-    .container { max-width: 900px; margin: 0 auto; }
+
+    /* Header */
     header {
+      border-bottom: 1px solid var(--border);
+      background: var(--background);
+      position: sticky;
+      top: 0;
+      z-index: 10;
+    }
+    .header-content {
+      max-width: 900px;
+      margin: 0 auto;
+      padding: 12px 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-weight: 600;
+    }
+    .logo svg { color: var(--accent); }
+    .nav-links {
+      display: flex;
+      gap: 4px;
+    }
+    .nav-link {
+      font-size: 0.875rem;
+      padding: 6px 12px;
+      border-radius: var(--radius);
+      color: var(--foreground);
+      text-decoration: none;
+      transition: background 0.2s;
+    }
+    .nav-link:hover { background: var(--muted); }
+    .nav-link.active { background: var(--muted); }
+
+    /* Main content */
+    .container {
+      max-width: 900px;
+      margin: 0 auto;
+      padding: 24px 16px;
+    }
+
+    /* Hero */
+    .hero {
       text-align: center;
-      padding: 40px 0;
+      padding: 32px 0 40px;
     }
-    h1 {
-      font-size: 2.5rem;
-      background: linear-gradient(90deg, #f97316, #fb923c);
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
-      margin-bottom: 10px;
+    .hero h1 {
+      font-size: 2rem;
+      font-weight: 700;
+      letter-spacing: -0.025em;
+      margin-bottom: 8px;
     }
-    .subtitle { color: #a1a1aa; font-size: 1.1rem; }
+    .hero p {
+      color: var(--muted-foreground);
+      font-size: 1.1rem;
+      max-width: 500px;
+      margin: 0 auto;
+    }
+    .status-row {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 16px;
+      margin-top: 16px;
+    }
+    .status-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 12px;
+      border-radius: 9999px;
+      font-size: 0.8rem;
+      font-weight: 500;
+    }
+    .status-online { background: rgba(34,197,94,0.1); color: var(--success); }
+    .status-offline { background: rgba(239,68,68,0.1); color: var(--destructive); }
+    .stats-bar {
+      display: flex;
+      gap: 20px;
+      font-size: 0.85rem;
+      color: var(--muted-foreground);
+    }
+    .stat-value { color: var(--accent); font-weight: 600; }
+
+    /* Card */
     .card {
-      background: rgba(255,255,255,0.05);
-      border: 1px solid rgba(255,255,255,0.1);
-      border-radius: 16px;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: calc(var(--radius) + 4px);
       padding: 24px;
-      margin-bottom: 24px;
-      backdrop-filter: blur(10px);
-    }
-    .card h2 {
-      color: #f97316;
       margin-bottom: 16px;
-      font-size: 1.3rem;
     }
+    .card-title {
+      font-size: 1rem;
+      font-weight: 600;
+      margin-bottom: 16px;
+    }
+
+    /* Form elements */
     .form-group { margin-bottom: 16px; }
     label {
       display: block;
-      margin-bottom: 8px;
-      color: #a1a1aa;
-      font-size: 0.9rem;
+      margin-bottom: 6px;
+      font-size: 0.875rem;
+      font-weight: 500;
     }
-    textarea, select, input {
+    textarea, select, input[type="text"] {
       width: 100%;
-      padding: 12px;
-      border: 1px solid rgba(255,255,255,0.1);
-      border-radius: 8px;
-      background: rgba(0,0,0,0.3);
-      color: #e4e4e7;
-      font-size: 1rem;
+      padding: 10px 12px;
+      border: 1px solid var(--input);
+      border-radius: var(--radius);
+      background: var(--background);
+      color: var(--foreground);
+      font-size: 0.875rem;
       font-family: inherit;
-      caret-color: transparent;
+      transition: border-color 0.2s, box-shadow 0.2s;
     }
     textarea { min-height: 120px; resize: vertical; }
     textarea:focus, select:focus, input:focus {
       outline: none;
-      border-color: #f97316;
-      caret-color: #f97316;
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(249,115,22,0.1);
     }
+
+    /* Buttons */
     .btn {
-      background: linear-gradient(90deg, #f97316, #ea580c);
-      color: white;
-      border: none;
-      padding: 14px 28px;
-      border-radius: 8px;
-      font-size: 1rem;
-      font-weight: 600;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 10px 16px;
+      border-radius: var(--radius);
+      font-size: 0.875rem;
+      font-weight: 500;
       cursor: pointer;
-      transition: transform 0.2s, box-shadow 0.2s;
+      transition: all 0.2s;
+      border: none;
     }
-    .btn:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 4px 20px rgba(249,115,22,0.4);
+    .btn-primary {
+      background: var(--primary);
+      color: var(--primary-foreground);
     }
-    .btn:disabled {
-      opacity: 0.6;
-      cursor: not-allowed;
-      transform: none;
+    .btn-primary:hover { opacity: 0.9; }
+    .btn-accent {
+      background: var(--accent);
+      color: var(--accent-foreground);
     }
+    .btn-accent:hover { background: #ea580c; }
     .btn-secondary {
-      background: rgba(255,255,255,0.1);
-      margin-left: 10px;
+      background: var(--secondary);
+      color: var(--secondary-foreground);
     }
+    .btn-secondary:hover { background: #e4e4e7; }
+    .btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+    .btn-group {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    /* Voice grid */
     .voices-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
-      gap: 10px;
+      grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+      gap: 8px;
     }
     .voice-option {
-      padding: 12px;
-      border: 2px solid rgba(255,255,255,0.1);
-      border-radius: 8px;
+      padding: 12px 10px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
       cursor: pointer;
       transition: all 0.2s;
       text-align: center;
+      background: var(--background);
     }
-    .voice-option:hover { border-color: rgba(249,115,22,0.5); }
+    .voice-option:hover { border-color: var(--accent); }
     .voice-option.selected {
-      border-color: #f97316;
-      background: rgba(249,115,22,0.1);
+      border-color: var(--accent);
+      background: rgba(249,115,22,0.05);
     }
-    .voice-name { font-weight: 600; margin-bottom: 4px; }
-    .voice-desc { font-size: 0.75rem; color: #a1a1aa; }
+    .voice-name { font-weight: 600; font-size: 0.875rem; }
+    .voice-desc { font-size: 0.75rem; color: var(--muted-foreground); margin-top: 2px; }
+
+    /* Live preview */
+    .live-preview {
+      background: var(--muted);
+      border-radius: var(--radius);
+      padding: 12px 16px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 16px;
+      font-size: 0.85rem;
+      margin-bottom: 16px;
+    }
+    .preview-item { display: flex; align-items: center; gap: 6px; }
+    .preview-label { color: var(--muted-foreground); }
+    .preview-value { color: var(--accent); font-weight: 600; }
+
+    /* Endpoints */
+    .endpoints { display: grid; gap: 8px; }
+    .endpoint {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 10px 12px;
+      background: var(--muted);
+      border-radius: var(--radius);
+    }
+    .method {
+      padding: 3px 8px;
+      border-radius: 4px;
+      font-weight: 600;
+      font-size: 0.7rem;
+      text-transform: uppercase;
+    }
+    .method-get { background: var(--success); color: white; }
+    .method-post { background: #3b82f6; color: white; }
+    .endpoint-path { font-family: ui-monospace, monospace; font-size: 0.85rem; }
+    .endpoint-desc { color: var(--muted-foreground); font-size: 0.8rem; margin-left: auto; }
+
+    /* Results */
     .result {
-      background: rgba(0,0,0,0.3);
-      border-radius: 8px;
+      background: var(--muted);
+      border-radius: var(--radius);
       padding: 16px;
       margin-top: 16px;
     }
-    .result.error { border-left: 4px solid #ef4444; }
-    .result.success { border-left: 4px solid #22c55e; }
-    audio { width: 100%; margin-top: 12px; }
+    .result.error { border-left: 3px solid var(--destructive); }
+    .result.success { border-left: 3px solid var(--success); }
+    .result strong { display: block; margin-bottom: 8px; }
+    .metadata-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+      gap: 8px;
+      margin-top: 12px;
+    }
+    .metadata-item {
+      background: var(--background);
+      padding: 8px 10px;
+      border-radius: 6px;
+      font-size: 0.8rem;
+    }
+    .metadata-item .label { color: var(--muted-foreground); display: block; margin-bottom: 2px; }
+    .metadata-item .value { font-weight: 500; }
+    .cost-badge {
+      background: rgba(249,115,22,0.1);
+      color: var(--accent);
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-size: 0.8rem;
+      font-weight: 500;
+      margin-left: 8px;
+    }
+
+    /* Main player */
+    .main-player {
+      background: var(--muted);
+      border-radius: var(--radius);
+      padding: 16px;
+      margin-bottom: 16px;
+    }
+    .main-player.empty { display: none; }
+    .now-playing { font-size: 0.8rem; color: var(--muted-foreground); margin-bottom: 4px; }
+    .now-playing-title { font-weight: 600; color: var(--accent); margin-bottom: 12px; }
+    .main-player audio { width: 100%; }
+
+    /* Podcast list */
     .podcast-list { list-style: none; }
     .podcast-item {
       display: flex;
       flex-direction: column;
       padding: 12px;
-      border-bottom: 1px solid rgba(255,255,255,0.1);
+      border-bottom: 1px solid var(--border);
+      transition: background 0.2s;
     }
     .podcast-item:last-child { border-bottom: none; }
-    .podcast-item:hover { background: rgba(249,115,22,0.05); }
-    .podcast-item.active { background: rgba(249,115,22,0.15); border-left: 3px solid #f97316; }
-    .podcast-info { cursor: pointer; display: flex; align-items: center; flex: 1; }
-    .podcast-info:hover { color: #f97316; }
+    .podcast-item:hover { background: var(--muted); }
+    .podcast-item.active { background: rgba(249,115,22,0.05); border-left: 3px solid var(--accent); }
     .podcast-header { display: flex; align-items: center; justify-content: space-between; width: 100%; margin-bottom: 8px; }
+    .podcast-info { cursor: pointer; display: flex; align-items: center; flex: 1; }
+    .podcast-info:hover { color: var(--accent); }
+    .play-icon { margin-right: 10px; opacity: 0.5; }
+    .podcast-item:hover .play-icon { opacity: 1; }
+    .podcast-name { font-weight: 500; font-size: 0.9rem; }
+    .podcast-meta { font-size: 0.75rem; color: var(--muted-foreground); }
     .download-btn {
-      background: rgba(255,255,255,0.1);
-      color: #a1a1aa;
+      background: var(--secondary);
+      color: var(--muted-foreground);
       border: none;
-      padding: 6px 12px;
+      padding: 6px 10px;
       border-radius: 6px;
-      font-size: 0.8rem;
+      font-size: 0.75rem;
       cursor: pointer;
       text-decoration: none;
       display: inline-flex;
@@ -143,92 +366,39 @@
       gap: 4px;
       transition: all 0.2s;
     }
-    .download-btn:hover { background: rgba(249,115,22,0.2); color: #f97316; }
-    .podcast-name { font-weight: 500; }
-    .podcast-meta { font-size: 0.8rem; color: #a1a1aa; }
-    .main-player {
-      background: rgba(0,0,0,0.3);
-      border-radius: 12px;
-      padding: 20px;
-      margin-bottom: 20px;
-    }
-    .main-player.empty { display: none; }
-    .now-playing { font-size: 0.85rem; color: #a1a1aa; margin-bottom: 8px; }
-    .now-playing-title { color: #f97316; font-weight: 600; font-size: 1.1rem; margin-bottom: 12px; }
-    .main-player audio { width: 100%; }
-    .play-icon { margin-right: 8px; opacity: 0.5; }
-    .podcast-item:hover .play-icon { opacity: 1; }
-    .status-badge {
-      display: inline-block;
-      padding: 4px 12px;
-      border-radius: 20px;
-      font-size: 0.8rem;
-      font-weight: 500;
-    }
-    .status-online { background: rgba(34,197,94,0.2); color: #22c55e; }
-    .status-offline { background: rgba(239,68,68,0.2); color: #ef4444; }
-    .stats-bar {
-      display: flex;
-      gap: 24px;
-      justify-content: center;
-      margin-top: 12px;
-      font-size: 0.85rem;
-      color: #a1a1aa;
-    }
-    .stat-item { display: flex; align-items: center; gap: 6px; }
-    .stat-value { color: #f97316; font-weight: 600; }
-    .cost-badge {
-      background: rgba(249,115,22,0.15);
-      color: #fb923c;
-      padding: 2px 8px;
-      border-radius: 4px;
-      font-size: 0.8rem;
-      font-weight: 500;
-      margin-left: 8px;
-    }
-    .live-preview {
-      background: rgba(0,0,0,0.3);
-      border-radius: 8px;
-      padding: 12px 16px;
-      margin-bottom: 16px;
-      display: flex;
-      flex-wrap: wrap;
-      gap: 16px;
-      font-size: 0.85rem;
-    }
-    .preview-item { display: flex; align-items: center; gap: 6px; }
-    .preview-label { color: #a1a1aa; }
-    .preview-value { color: #f97316; font-weight: 600; }
+    .download-btn:hover { background: var(--accent); color: white; }
+
+    /* Confirm modal */
     .confirm-modal {
       position: fixed;
       top: 0;
       left: 0;
       right: 0;
       bottom: 0;
-      background: rgba(0,0,0,0.8);
+      background: rgba(0,0,0,0.5);
       display: flex;
       align-items: center;
       justify-content: center;
-      z-index: 1000;
+      z-index: 100;
       padding: 20px;
     }
     .confirm-modal.hidden { display: none; }
     .confirm-box {
-      background: #1a1a2e;
-      border: 1px solid rgba(255,255,255,0.1);
-      border-radius: 16px;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: calc(var(--radius) + 4px);
       padding: 24px;
       max-width: 400px;
       width: 100%;
     }
     .confirm-box h3 {
-      color: #f97316;
+      font-size: 1.1rem;
+      font-weight: 600;
       margin-bottom: 16px;
-      font-size: 1.2rem;
     }
     .confirm-details {
-      background: rgba(0,0,0,0.3);
-      border-radius: 8px;
+      background: var(--muted);
+      border-radius: var(--radius);
       padding: 16px;
       margin-bottom: 20px;
     }
@@ -236,79 +406,27 @@
       display: flex;
       justify-content: space-between;
       padding: 8px 0;
-      border-bottom: 1px solid rgba(255,255,255,0.05);
+      border-bottom: 1px solid var(--border);
+      font-size: 0.9rem;
     }
     .confirm-row:last-child { border-bottom: none; }
-    .confirm-row .label { color: #a1a1aa; }
-    .confirm-row .value { color: #e4e4e7; font-weight: 500; }
-    .confirm-row .value.cost { color: #f97316; font-size: 1.1rem; }
+    .confirm-row .label { color: var(--muted-foreground); }
+    .confirm-row .value { font-weight: 500; }
+    .confirm-row .value.cost { color: var(--accent); font-size: 1.1rem; }
     .confirm-buttons { display: flex; gap: 12px; }
     .confirm-buttons .btn { flex: 1; }
-    .btn-cancel {
-      background: rgba(255,255,255,0.1);
-    }
-    .metadata-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-      gap: 8px;
-      margin-top: 12px;
-    }
-    .metadata-item {
-      background: rgba(0,0,0,0.2);
-      padding: 8px 12px;
-      border-radius: 6px;
-      font-size: 0.8rem;
-    }
-    .metadata-item .label { color: #a1a1aa; display: block; margin-bottom: 2px; }
-    .metadata-item .value { color: #e4e4e7; font-weight: 500; }
-    .endpoints {
-      display: grid;
-      gap: 12px;
-    }
-    .endpoint {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      padding: 12px;
-      background: rgba(0,0,0,0.2);
-      border-radius: 8px;
-    }
-    .method {
-      padding: 4px 10px;
-      border-radius: 4px;
-      font-weight: 600;
-      font-size: 0.75rem;
-    }
-    .method-get { background: #22c55e; color: white; }
-    .method-post { background: #3b82f6; color: white; }
-    .endpoint-path { font-family: monospace; color: #e4e4e7; }
-    .endpoint-desc { color: #a1a1aa; font-size: 0.85rem; margin-left: auto; }
-    .loading {
-      display: inline-block;
-      width: 20px;
-      height: 20px;
-      border: 2px solid rgba(255,255,255,0.3);
-      border-radius: 50%;
-      border-top-color: #f97316;
-      animation: spin 1s ease-in-out infinite;
-    }
-    @keyframes spin { to { transform: rotate(360deg); } }
-    .row { display: flex; gap: 16px; }
-    .row .form-group { flex: 1; }
+
+    /* Footer */
     footer {
       text-align: center;
-      padding: 40px 20px;
-      color: #71717a;
+      padding: 32px 16px;
+      color: var(--muted-foreground);
       font-size: 0.85rem;
-      border-top: 1px solid rgba(255,255,255,0.1);
-      margin-top: 40px;
+      border-top: 1px solid var(--border);
+      margin-top: 32px;
     }
-    footer a {
-      color: #f97316;
-      text-decoration: none;
-      transition: color 0.2s;
-    }
-    footer a:hover { color: #fb923c; }
+    footer a { color: var(--accent); text-decoration: none; }
+    footer a:hover { text-decoration: underline; }
     .footer-links {
       display: flex;
       justify-content: center;
@@ -316,87 +434,93 @@
       margin-bottom: 12px;
     }
 
-    /* Mobile Responsive Styles */
+    /* Loading spinner */
+    .loading {
+      display: inline-block;
+      width: 16px;
+      height: 16px;
+      border: 2px solid var(--border);
+      border-radius: 50%;
+      border-top-color: var(--accent);
+      animation: spin 0.8s ease-in-out infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* Theme toggle */
+    .theme-toggle {
+      background: none;
+      border: none;
+      padding: 6px;
+      cursor: pointer;
+      color: var(--muted-foreground);
+      border-radius: var(--radius);
+      transition: background 0.2s;
+    }
+    .theme-toggle:hover { background: var(--muted); }
+    .theme-toggle svg { width: 18px; height: 18px; }
+
+    /* Dark mode icon states */
+    .dark .sun-icon { display: block; }
+    .dark .moon-icon { display: none; }
+    .sun-icon { display: none; }
+    .moon-icon { display: block; }
+
+    /* Auth styles */
+    #user-button { display: flex; align-items: center; }
+    .auth-loading {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      flex-direction: column;
+      gap: 16px;
+    }
+    .auth-loading .loading { width: 32px; height: 32px; }
+    .sign-in-screen {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 80vh;
+      text-align: center;
+      padding: 24px;
+    }
+    .sign-in-screen h1 {
+      font-size: 2rem;
+      font-weight: 700;
+      margin-bottom: 8px;
+    }
+    .sign-in-screen p {
+      color: var(--muted-foreground);
+      margin-bottom: 24px;
+      max-width: 400px;
+    }
+    #sign-in-container {
+      width: 100%;
+      max-width: 400px;
+    }
+    .app-content.hidden { display: none; }
+
+    /* Mobile responsive */
     @media (max-width: 768px) {
-      body { padding: 12px; }
-      header { padding: 24px 0; }
-      h1 { font-size: 1.75rem; }
-      .subtitle { font-size: 0.95rem; }
-      .card { padding: 16px; border-radius: 12px; margin-bottom: 16px; }
-      .card h2 { font-size: 1.1rem; margin-bottom: 12px; }
-
-      /* Stats bar - stack on mobile */
-      .stats-bar {
-        flex-direction: column;
-        gap: 8px;
-        align-items: center;
-      }
-
-      /* Voices grid - 2 columns on mobile */
-      .voices-grid {
-        grid-template-columns: repeat(2, 1fr);
-        gap: 8px;
-      }
-      .voice-option { padding: 10px 8px; }
-      .voice-name { font-size: 0.9rem; }
-      .voice-desc { font-size: 0.7rem; }
-
-      /* Buttons - full width on mobile */
-      .btn {
-        width: 100%;
-        padding: 14px 20px;
-        margin-bottom: 10px;
-      }
-      .btn-secondary {
-        margin-left: 0;
-        background: rgba(255,255,255,0.1);
-      }
-
-      /* Endpoint cards - stack description */
-      .endpoint {
-        flex-wrap: wrap;
-        gap: 8px;
-        padding: 10px;
-      }
-      .endpoint-desc {
-        width: 100%;
-        margin-left: 0;
-        margin-top: 4px;
-      }
-
-      /* Podcast list items */
-      .podcast-item {
-        padding: 14px 10px;
-      }
-      .podcast-name {
-        font-size: 0.9rem;
-        word-break: break-all;
-      }
-      .podcast-meta { font-size: 0.75rem; }
-      .play-icon { font-size: 0.9rem; }
-
-      /* Main player */
-      .main-player { padding: 16px; }
-      .now-playing-title { font-size: 1rem; }
-
-      /* Result box */
-      .result { padding: 12px; font-size: 0.9rem; }
-      .cost-badge { display: block; margin: 8px 0 0 0; }
-
-      /* Footer */
-      footer { padding: 24px 16px; }
-      .footer-links { gap: 16px; flex-wrap: wrap; }
-
-      /* Textarea taller on mobile for easier editing */
-      textarea { min-height: 180px; font-size: 0.95rem; }
+      .header-content { padding: 10px 12px; }
+      .container { padding: 16px 12px; }
+      .hero { padding: 24px 0 32px; }
+      .hero h1 { font-size: 1.5rem; }
+      .hero p { font-size: 1rem; }
+      .stats-bar { flex-direction: column; gap: 6px; }
+      .card { padding: 16px; }
+      .voices-grid { grid-template-columns: repeat(2, 1fr); }
+      .btn { width: 100%; }
+      .btn-group { flex-direction: column; }
+      .endpoint { flex-wrap: wrap; }
+      .endpoint-desc { width: 100%; margin-left: 0; margin-top: 4px; }
+      textarea { min-height: 160px; }
     }
 
-    /* Small phones */
     @media (max-width: 380px) {
-      h1 { font-size: 1.5rem; }
+      .hero h1 { font-size: 1.25rem; }
       .voices-grid { grid-template-columns: repeat(2, 1fr); }
-      .voice-option { padding: 8px 6px; }
-      .stats-bar { font-size: 0.8rem; }
     }
 
     /* Auto-open settings styles */
@@ -508,22 +632,78 @@
   </style>
 </head>
 <body>
+  <header>
+    <div class="header-content">
+      <div class="logo">
+        <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/>
+          <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
+          <line x1="12" x2="12" y1="19" y2="22"/>
+        </svg>
+        <span>Podcast Generator</span>
+      </div>
+      <div style="display: flex; align-items: center; gap: 8px;">
+        <nav class="nav-links">
+          <a href="#" class="nav-link active">Generate</a>
+          <a href="#podcasts" class="nav-link">Library</a>
+        </nav>
+        <button class="theme-toggle" onclick="toggleTheme()" title="Toggle theme">
+          <svg class="moon-icon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"/>
+          </svg>
+          <svg class="sun-icon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"/>
+          </svg>
+        </button>
+        <div id="user-button"></div>
+      </div>
+    </div>
+  </header>
+
+  <!-- Auth Loading State -->
+  <div id="auth-loading" class="auth-loading">
+    <div class="logo">
+      <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: var(--accent);">
+        <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/>
+        <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
+        <line x1="12" x2="12" y1="19" y2="22"/>
+      </svg>
+    </div>
+    <span class="loading"></span>
+  </div>
+
+  <!-- Sign In Screen (shown when not authenticated) -->
+  <div id="sign-in-screen" class="sign-in-screen" style="display: none;">
+    <div class="logo" style="margin-bottom: 24px;">
+      <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: var(--accent);">
+        <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/>
+        <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
+        <line x1="12" x2="12" y1="19" y2="22"/>
+      </svg>
+    </div>
+    <h1>Podcast Generator</h1>
+    <p>Sign in to generate high-quality podcasts from text using AI voices.</p>
+    <div id="sign-in-container"></div>
+  </div>
+
+  <!-- Main App Content (hidden until authenticated) -->
+  <div id="app-content" class="app-content hidden">
   <div class="container">
-    <header>
-      <h1>Podcast Generator API</h1>
-      <p class="subtitle">Generate podcasts from text using AI voices</p>
-      <div style="margin-top: 16px;">
+    <div class="hero">
+      <h1>AI Podcast Generator</h1>
+      <p>Generate high-quality podcasts from text using OpenAI's text-to-speech technology.</p>
+      <div class="status-row">
         <span id="status" class="status-badge status-offline">Checking...</span>
+        <div class="stats-bar" id="statsBar">
+          <span>Generations: <span class="stat-value" id="statGenerations">0</span></span>
+          <span>Characters: <span class="stat-value" id="statCharacters">0</span></span>
+          <span>Cost: <span class="stat-value" id="statCost">$0.00</span></span>
+        </div>
       </div>
-      <div class="stats-bar" id="statsBar">
-        <div class="stat-item">Generations: <span class="stat-value" id="statGenerations">0</span></div>
-        <div class="stat-item">Characters: <span class="stat-value" id="statCharacters">0</span></div>
-        <div class="stat-item">Session Cost: <span class="stat-value" id="statCost">$0.0000</span></div>
-      </div>
-    </header>
+    </div>
 
     <div class="card">
-      <h2>API Endpoints</h2>
+      <div class="card-title">API Endpoints</div>
       <div class="endpoints">
         <div class="endpoint">
           <span class="method method-get">GET</span>
@@ -549,19 +729,17 @@
     </div>
 
     <div class="card">
-      <h2>Generate Podcast</h2>
+      <div class="card-title">Generate Podcast</div>
       <form id="generateForm">
         <div class="form-group">
           <label>Text to Convert</label>
-          <textarea id="text" placeholder="Enter the text you want to convert to speech...">Welcome to the Podcast Generator API, developed by Ecoworks Webb Architecture. This application is powered by OpenAI's Text-to-Speech technology, using the TTS-1 model to convert your written content into natural-sounding audio.
+          <textarea id="text" placeholder="Enter the text you want to convert to speech...">Welcome to the Podcast Generator API, developed by Ecoworks Web Architecture. This application is powered by OpenAI's Text-to-Speech technology, using the TTS-1 model to convert your written content into natural-sounding audio.
 
 Behind the scenes, we're running Node.js with Express to handle API requests, integrated with the OpenAI SDK for speech generation. You can choose from six distinct AI voices: Alloy for a neutral tone, Echo for warmth, Fable for dramatic flair, Nova for an upbeat style, Onyx for authority, and Shimmer for clarity.
 
 Each generated podcast is saved as an MP3 file with embedded ID3 metadata, including the voice used, character count, and generation cost. The current rate is fifteen dollars per million characters, making it an affordable solution for content creators.
 
-In our latest update, we've added real-time cost tracking so you can monitor your spending per generation and across your entire session. We've also implemented a clickable playlist with a dedicated audio player, making it easy to browse and play your generated content. The interface features a modern dark theme with orange accents, and works beautifully on both desktop and mobile devices.
-
-Built with care by Ecoworks Webb Architecture. Try it now by clicking Generate Podcast!</textarea>
+Built with care by Ecoworks Web Architecture. Try it now by clicking Generate Podcast!</textarea>
         </div>
         <div class="live-preview" id="livePreview">
           <div class="preview-item">
@@ -581,11 +759,9 @@ Built with care by Ecoworks Webb Architecture. Try it now by clicking Generate P
             <span class="preview-value">tts-1</span>
           </div>
         </div>
-        <div class="row">
-          <div class="form-group">
-            <label>Episode Title</label>
-            <input type="text" id="title" placeholder="my-podcast-episode" value="tech-overview">
-          </div>
+        <div class="form-group">
+          <label>Episode Title</label>
+          <input type="text" id="title" placeholder="my-podcast-episode" value="tech-overview">
         </div>
         <div class="form-group">
           <label>Select Voice</label>
@@ -616,45 +792,23 @@ Built with care by Ecoworks Webb Architecture. Try it now by clicking Generate P
             </div>
           </div>
         </div>
-
-        <!-- Auto-open Settings -->
-        <div class="settings-section" id="autoOpenSettings" style="display: none;">
-          <div class="settings-header">
-            <div>
-              <span class="settings-title">Auto-open in Podcast Player</span>
-              <span id="platformBadge" class="platform-badge"></span>
-            </div>
-            <label class="toggle-switch">
-              <input type="checkbox" id="autoOpenToggle">
-              <span class="toggle-slider"></span>
-            </label>
-          </div>
-          <div class="player-select" id="playerSelect">
-            <label style="font-size: 0.85rem; color: #a1a1aa;">Select Player:</label>
-            <div class="player-options" id="playerOptions">
-              <!-- Player options will be populated dynamically -->
-            </div>
-            <div class="auto-open-notice" id="autoOpenNotice">
-              After generation, the podcast will automatically open in your selected player's queue.
-            </div>
-          </div>
+        <div class="btn-group">
+          <button type="submit" class="btn btn-accent" id="generateBtn">Generate Podcast</button>
+          <button type="button" class="btn btn-secondary" onclick="loadPodcasts()">Refresh List</button>
         </div>
-
-        <button type="submit" class="btn" id="generateBtn">Generate Podcast</button>
-        <button type="button" class="btn btn-secondary" onclick="loadPodcasts()">Refresh List</button>
       </form>
       <div id="generateResult"></div>
     </div>
 
-    <div class="card">
-      <h2>Generated Podcasts</h2>
+    <div class="card" id="podcasts">
+      <div class="card-title">Generated Podcasts</div>
       <div id="mainPlayer" class="main-player empty">
         <div class="now-playing">Now Playing</div>
         <div class="now-playing-title" id="nowPlayingTitle"></div>
         <audio id="mainAudio" controls></audio>
       </div>
       <div id="podcastsList">
-        <p style="color: #a1a1aa;">Loading...</p>
+        <p style="color: var(--muted-foreground);">Loading...</p>
       </div>
     </div>
 
@@ -664,8 +818,9 @@ Built with care by Ecoworks Webb Architecture. Try it now by clicking Generate P
         <a href="https://github.com/smhunt/podcast-generator-endpoint/blob/main/ROADMAP.md" target="_blank">Roadmap</a>
         <a href="https://github.com/smhunt/podcast-generator-endpoint" target="_blank">GitHub</a>
       </div>
-      <p>&copy; <span id="currentYear"></span> Ecoworks Webb Architecture. All rights reserved.</p>
+      <p>&copy; <span id="currentYear"></span> Ecoworks Web Architecture. All rights reserved.</p>
     </footer>
+  </div>
   </div>
 
   <!-- Confirmation Modal -->
@@ -695,21 +850,26 @@ Built with care by Ecoworks Webb Architecture. Try it now by clicking Generate P
         </div>
       </div>
       <div class="confirm-buttons">
-        <button class="btn btn-cancel" onclick="hideConfirmModal()">Cancel</button>
-        <button class="btn" id="confirmGenerateBtn">Generate</button>
+        <button class="btn btn-secondary" onclick="hideConfirmModal()">Cancel</button>
+        <button class="btn btn-accent" id="confirmGenerateBtn">Generate</button>
       </div>
     </div>
   </div>
 
   <script>
     const API_BASE = window.location.origin;
-    const TTS_RATE = 15; // $15 per 1M characters
+    const TTS_RATE = 15;
     let selectedVoice = 'nova';
 
-    // Auto-open settings
-    let autoOpenEnabled = localStorage.getItem('autoOpenEnabled') === 'true';
-    let selectedPlayer = localStorage.getItem('selectedPlayer') || 'default';
-    let systemInfo = null;
+    // Theme toggle
+    function toggleTheme() {
+      document.body.classList.toggle('dark');
+      localStorage.setItem('theme', document.body.classList.contains('dark') ? 'dark' : 'light');
+    }
+    // Load saved theme
+    if (localStorage.getItem('theme') === 'dark') {
+      document.body.classList.add('dark');
+    }
 
     // Voice selection
     document.querySelectorAll('.voice-option').forEach(el => {
@@ -720,19 +880,18 @@ Built with care by Ecoworks Webb Architecture. Try it now by clicking Generate P
       });
     });
 
-    // Live preview - update as user types
+    // Live preview
     const textArea = document.getElementById('text');
     function updateLivePreview() {
       const charCount = textArea.value.length;
       const cost = (charCount * TTS_RATE) / 1_000_000;
-      const duration = Math.ceil(charCount / 150); // ~150 chars per second spoken
-
+      const duration = Math.ceil(charCount / 150);
       document.getElementById('previewChars').textContent = charCount.toLocaleString();
       document.getElementById('previewCost').textContent = `$${cost.toFixed(4)}`;
       document.getElementById('previewDuration').textContent = `~${duration}s`;
     }
     textArea.addEventListener('input', updateLivePreview);
-    updateLivePreview(); // Initial call
+    updateLivePreview();
 
     // Confirmation modal
     function showConfirmModal() {
@@ -741,13 +900,11 @@ Built with care by Ecoworks Webb Architecture. Try it now by clicking Generate P
       const charCount = text.length;
       const cost = (charCount * TTS_RATE) / 1_000_000;
       const duration = Math.ceil(charCount / 150);
-
       document.getElementById('confirmTitle').textContent = title;
       document.getElementById('confirmVoice').textContent = selectedVoice;
       document.getElementById('confirmChars').textContent = charCount.toLocaleString();
       document.getElementById('confirmDuration').textContent = `~${duration} seconds`;
       document.getElementById('confirmCost').textContent = `$${cost.toFixed(4)}`;
-
       document.getElementById('confirmModal').classList.remove('hidden');
     }
 
@@ -755,12 +912,11 @@ Built with care by Ecoworks Webb Architecture. Try it now by clicking Generate P
       document.getElementById('confirmModal').classList.add('hidden');
     }
 
-    // Close modal on background click
     document.getElementById('confirmModal').addEventListener('click', (e) => {
       if (e.target.id === 'confirmModal') hideConfirmModal();
     });
 
-    // Check API health
+    // Check health
     async function checkHealth() {
       const statusEl = document.getElementById('status');
       try {
@@ -777,14 +933,7 @@ Built with care by Ecoworks Webb Architecture. Try it now by clicking Generate P
       }
     }
 
-    // Lazy load audio - only load src when user interacts
-    function lazyLoadAudio(audio) {
-      if (!audio.src && audio.dataset.src) {
-        audio.src = audio.dataset.src;
-      }
-    }
-
-    // Stop all audio players
+    // Stop all audio
     function stopAllAudio() {
       document.querySelectorAll('audio').forEach(audio => {
         audio.pause();
@@ -792,20 +941,16 @@ Built with care by Ecoworks Webb Architecture. Try it now by clicking Generate P
       });
     }
 
-    // Play podcast in main player
+    // Play podcast
     function playPodcast(url, filename) {
-      stopAllAudio(); // Stop any playing audio first
-
+      stopAllAudio();
       const mainPlayer = document.getElementById('mainPlayer');
       const mainAudio = document.getElementById('mainAudio');
       const nowPlayingTitle = document.getElementById('nowPlayingTitle');
-
       mainPlayer.classList.remove('empty');
       nowPlayingTitle.textContent = filename;
       mainAudio.src = url;
       mainAudio.play();
-
-      // Update active state
       document.querySelectorAll('.podcast-item').forEach(item => {
         item.classList.remove('active');
         if (item.dataset.url === url) {
@@ -814,26 +959,14 @@ Built with care by Ecoworks Webb Architecture. Try it now by clicking Generate P
       });
     }
 
-    // When any audio starts playing, pause all others
-    document.addEventListener('play', function(e) {
-      if (e.target.tagName === 'AUDIO') {
-        document.querySelectorAll('audio').forEach(audio => {
-          if (audio !== e.target && !audio.paused) {
-            audio.pause();
-          }
-        });
-      }
-    }, true);
-
-    // Load podcasts list
+    // Load podcasts
     async function loadPodcasts() {
       const listEl = document.getElementById('podcastsList');
       try {
         const res = await fetch(`${API_BASE}/api/podcasts`);
         const data = await res.json();
-
         if (data.podcasts.length === 0) {
-          listEl.innerHTML = '<p style="color: #a1a1aa;">No podcasts generated yet. Create your first one above!</p>';
+          listEl.innerHTML = '<p style="color: var(--muted-foreground);">No podcasts generated yet. Create your first one above!</p>';
           return;
         }
 
@@ -844,73 +977,51 @@ Built with care by Ecoworks Webb Architecture. Try it now by clicking Generate P
               <div class="podcast-header">
                 <div class="podcast-info" onclick="playPodcast('${API_BASE}${p.url}', '${p.filename}')">
                   <span class="play-icon">&#9658;</span>
-                  <div style="display: inline-block;">
+                  <div>
                     <div class="podcast-name">${p.filename}</div>
                     <div class="podcast-meta">${formatBytes(p.size)} - ${new Date(p.createdAt).toLocaleString()}</div>
                   </div>
                 </div>
-                <div style="display: flex; gap: 8px;">
-                  ${showOpenBtn ? `<button onclick="openInPlayer('${p.filename}')" class="download-btn" title="Open in ${systemInfo.availablePlayers?.find(pl => pl.id === selectedPlayer)?.name || 'player'}">
-                    <span>&#9654;</span> Open
-                  </button>` : ''}
-                  <a href="${API_BASE}${p.url}" download="${p.filename}" class="download-btn">
-                    <span>&#8595;</span> Download
-                  </a>
-                </div>
+                <a href="${API_BASE}${p.url}" download="${p.filename}" class="download-btn">
+                  &#8595; Download
+                </a>
               </div>
-              <audio controls preload="none" data-src="${API_BASE}${p.url}" style="width: 100%;" onclick="lazyLoadAudio(this)"></audio>
             </li>
           `).join('')}
         </ul>`;
-
-        // Add lazy load listeners to all audio elements
-        listEl.querySelectorAll('audio[data-src]').forEach(audio => {
-          audio.addEventListener('play', function() {
-            if (!this.src && this.dataset.src) {
-              this.src = this.dataset.src;
-            }
-          });
-        });
       } catch (err) {
-        listEl.innerHTML = '<p style="color: #ef4444;">Failed to load podcasts</p>';
+        listEl.innerHTML = '<p style="color: var(--destructive);">Failed to load podcasts</p>';
       }
     }
 
-    // Generate podcast - show confirmation first
+    // Generate
     document.getElementById('generateForm').addEventListener('submit', async (e) => {
       e.preventDefault();
       const text = document.getElementById('text').value.trim();
       const resultEl = document.getElementById('generateResult');
-
       if (!text) {
         resultEl.innerHTML = '<div class="result error">Please enter some text to convert.</div>';
         return;
       }
-
       showConfirmModal();
     });
 
-    // Actual generation after confirmation
     async function generatePodcast() {
       hideConfirmModal();
       const btn = document.getElementById('generateBtn');
       const resultEl = document.getElementById('generateResult');
       const text = document.getElementById('text').value.trim();
       const title = document.getElementById('title').value.trim() || 'podcast';
-
       btn.disabled = true;
       btn.innerHTML = '<span class="loading"></span> Generating...';
       resultEl.innerHTML = '';
-
       try {
         const res = await fetch(`${API_BASE}/api/generate`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ text, title, voice: selectedVoice })
         });
-
         const data = await res.json();
-
         if (data.success) {
           const m = data.metadata;
           const autoOpenStatus = autoOpenEnabled && systemInfo?.supportsAutoOpen
@@ -918,35 +1029,16 @@ Built with care by Ecoworks Webb Architecture. Try it now by clicking Generate P
             : '';
           resultEl.innerHTML = `
             <div class="result success">
-              <strong>Generated successfully!</strong><span class="cost-badge">${m.cost.formatted}</span>
+              <strong>Generated successfully!<span class="cost-badge">${m.cost.formatted}</span></strong>
               <div class="metadata-grid">
-                <div class="metadata-item">
-                  <span class="label">Voice</span>
-                  <span class="value">${m.voice}</span>
-                </div>
-                <div class="metadata-item">
-                  <span class="label">Model</span>
-                  <span class="value">${m.model}</span>
-                </div>
-                <div class="metadata-item">
-                  <span class="label">Characters</span>
-                  <span class="value">${m.textLength.toLocaleString()}</span>
-                </div>
-                <div class="metadata-item">
-                  <span class="label">Processing</span>
-                  <span class="value">${m.processing.formatted}</span>
-                </div>
-                <div class="metadata-item">
-                  <span class="label">File Size</span>
-                  <span class="value">${m.file.formatted}</span>
-                </div>
-                <div class="metadata-item">
-                  <span class="label">Cost</span>
-                  <span class="value">${m.cost.formatted}</span>
-                </div>
+                <div class="metadata-item"><span class="label">Voice</span><span class="value">${m.voice}</span></div>
+                <div class="metadata-item"><span class="label">Model</span><span class="value">${m.model}</span></div>
+                <div class="metadata-item"><span class="label">Characters</span><span class="value">${m.textLength.toLocaleString()}</span></div>
+                <div class="metadata-item"><span class="label">Processing</span><span class="value">${m.processing.formatted}</span></div>
+                <div class="metadata-item"><span class="label">File Size</span><span class="value">${m.file.formatted}</span></div>
+                <div class="metadata-item"><span class="label">Cost</span><span class="value">${m.cost.formatted}</span></div>
               </div>
-              <audio controls src="${API_BASE}${data.audioUrl}" style="margin-top: 12px;"></audio>
-              ${autoOpenStatus}
+              <audio controls src="${API_BASE}${data.audioUrl}" style="margin-top: 12px; width: 100%;"></audio>
             </div>
           `;
           loadPodcasts();
@@ -960,14 +1052,13 @@ Built with care by Ecoworks Webb Architecture. Try it now by clicking Generate P
           resultEl.innerHTML = `<div class="result error">Error: ${data.error}</div>`;
         }
       } catch (err) {
-        resultEl.innerHTML = `<div class="result error">Failed to generate podcast: ${err.message}</div>`;
+        resultEl.innerHTML = `<div class="result error">Failed to generate: ${err.message}</div>`;
       } finally {
         btn.disabled = false;
         btn.textContent = 'Generate Podcast';
       }
     }
 
-    // Hook up confirm button
     document.getElementById('confirmGenerateBtn').addEventListener('click', generatePodcast);
 
     function formatBytes(bytes) {
@@ -976,7 +1067,6 @@ Built with care by Ecoworks Webb Architecture. Try it now by clicking Generate P
       return (bytes / 1048576).toFixed(1) + ' MB';
     }
 
-    // Load session stats
     async function loadStats() {
       try {
         const res = await fetch(`${API_BASE}/api/stats`);
@@ -989,113 +1079,72 @@ Built with care by Ecoworks Webb Architecture. Try it now by clicking Generate P
       }
     }
 
-    // Set current year
     document.getElementById('currentYear').textContent = new Date().getFullYear();
 
-    // Load system info for auto-open feature
-    async function loadSystemInfo() {
+    // Clerk Authentication
+    window.addEventListener('load', async () => {
       try {
-        const res = await fetch(`${API_BASE}/api/system-info`);
-        systemInfo = await res.json();
+        await window.Clerk.load();
 
-        const settingsSection = document.getElementById('autoOpenSettings');
-        const platformBadge = document.getElementById('platformBadge');
-        const playerOptions = document.getElementById('playerOptions');
-        const autoOpenToggle = document.getElementById('autoOpenToggle');
-        const playerSelect = document.getElementById('playerSelect');
+        const authLoading = document.getElementById('auth-loading');
+        const signInScreen = document.getElementById('sign-in-screen');
+        const appContent = document.getElementById('app-content');
 
-        if (systemInfo.supportsAutoOpen) {
-          // Show settings section
-          settingsSection.style.display = 'block';
-          platformBadge.textContent = 'macOS';
-          platformBadge.className = 'platform-badge platform-mac';
+        if (window.Clerk.user) {
+          // User is signed in
+          authLoading.style.display = 'none';
+          signInScreen.style.display = 'none';
+          appContent.classList.remove('hidden');
 
-          // Populate player options
-          playerOptions.innerHTML = systemInfo.availablePlayers.map(player => `
-            <div class="player-option ${player.available ? '' : 'disabled'} ${player.id === selectedPlayer ? 'selected' : ''}"
-                 data-player="${player.id}"
-                 ${player.available ? '' : 'title="Not installed"'}>
-              <div class="player-name">${player.name}</div>
-              <div class="player-desc">${player.description}</div>
-            </div>
-          `).join('');
+          // Mount user button
+          window.Clerk.mountUserButton(document.getElementById('user-button'));
 
-          // Add click handlers for player options
-          playerOptions.querySelectorAll('.player-option:not(.disabled)').forEach(el => {
-            el.addEventListener('click', () => {
-              playerOptions.querySelectorAll('.player-option').forEach(p => p.classList.remove('selected'));
-              el.classList.add('selected');
-              selectedPlayer = el.dataset.player;
-              localStorage.setItem('selectedPlayer', selectedPlayer);
-              updateAutoOpenNotice();
-            });
+          // Initialize app
+          checkHealth();
+          loadPodcasts();
+          loadStats();
+          setInterval(checkHealth, 30000);
+        } else {
+          // User is not signed in
+          authLoading.style.display = 'none';
+          signInScreen.style.display = 'flex';
+
+          // Mount sign-in component
+          window.Clerk.mountSignIn(document.getElementById('sign-in-container'), {
+            appearance: {
+              elements: {
+                rootBox: { width: '100%' },
+                card: { boxShadow: 'none', border: '1px solid var(--border)' }
+              }
+            }
           });
+        }
 
-          // Set toggle state from localStorage
-          autoOpenToggle.checked = autoOpenEnabled;
-          if (autoOpenEnabled) {
-            playerSelect.classList.add('visible');
+        // Listen for auth state changes
+        window.Clerk.addListener(({ user }) => {
+          if (user) {
+            signInScreen.style.display = 'none';
+            appContent.classList.remove('hidden');
+            window.Clerk.mountUserButton(document.getElementById('user-button'));
+            checkHealth();
+            loadPodcasts();
+            loadStats();
+          } else {
+            appContent.classList.add('hidden');
+            signInScreen.style.display = 'flex';
           }
-
-          // Handle toggle change
-          autoOpenToggle.addEventListener('change', () => {
-            autoOpenEnabled = autoOpenToggle.checked;
-            localStorage.setItem('autoOpenEnabled', autoOpenEnabled);
-            playerSelect.classList.toggle('visible', autoOpenEnabled);
-          });
-
-          updateAutoOpenNotice();
-        } else {
-          // Hide settings on non-Mac platforms
-          settingsSection.style.display = 'none';
-        }
-      } catch (err) {
-        console.error('Failed to load system info:', err);
-      }
-    }
-
-    // Update the notice text based on selected player
-    function updateAutoOpenNotice() {
-      const notice = document.getElementById('autoOpenNotice');
-      const playerName = systemInfo?.availablePlayers?.find(p => p.id === selectedPlayer)?.name || 'your player';
-
-      if (selectedPlayer === 'vlc') {
-        notice.textContent = `After generation, the podcast will be added to VLC's playlist queue.`;
-      } else if (selectedPlayer === 'apple-music') {
-        notice.textContent = `After generation, the podcast will start playing in Apple Music.`;
-      } else {
-        notice.textContent = `After generation, the podcast will open in your default audio application.`;
-      }
-    }
-
-    // Open podcast in selected player
-    async function openInPlayer(filename) {
-      if (!autoOpenEnabled || !systemInfo?.supportsAutoOpen) return;
-
-      try {
-        const res = await fetch(`${API_BASE}/api/open-in-player`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ filename, player: selectedPlayer })
         });
-
-        const data = await res.json();
-        if (data.success) {
-          console.log(`Opened ${filename} in ${selectedPlayer}`);
-        } else {
-          console.error('Failed to open in player:', data.error);
-        }
       } catch (err) {
-        console.error('Error opening in player:', err);
+        console.error('Clerk initialization error:', err);
+        // Fallback: show app without auth if Clerk fails
+        document.getElementById('auth-loading').style.display = 'none';
+        document.getElementById('app-content').classList.remove('hidden');
+        checkHealth();
+        loadPodcasts();
+        loadStats();
+        setInterval(checkHealth, 30000);
       }
-    }
-
-    // Initialize
-    checkHealth();
-    loadPodcasts();
-    loadStats();
-    loadSystemInfo();
-    setInterval(checkHealth, 30000);
+    });
   </script>
 </body>
 </html>

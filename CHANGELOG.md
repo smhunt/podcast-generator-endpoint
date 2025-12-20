@@ -19,6 +19,22 @@ All notable changes to the Podcast Generator API will be documented in this file
 ### Changed
 - Generation success now shows auto-open status message
 - Podcast list shows "Open" button on macOS systems
+## [1.6.0] - 2025-12-16
+
+### Added
+- Clerk authentication integration (same config as TranscribeGlobal)
+- Sign-in screen for unauthenticated users
+- User button in header for signed-in users
+- Dark mode toggle with persistent theme preference
+- Auth loading state with spinner
+
+### Changed
+- Complete UI redesign to match TranscribeGlobal styling
+- Light mode default with CSS custom properties
+- Clean card-based layout with subtle borders
+- Sticky header with navigation
+- Updated typography and spacing
+- Fixed branding: "Ecoworks Web Architecture" (was "Webb")
 
 ## [1.5.0] - 2025-12-12
 
@@ -52,7 +68,7 @@ All notable changes to the Podcast Generator API will be documented in this file
 ### Added
 - Mobile-responsive design optimized for phones and tablets
 - Updated sample text with full technology explanation
-- Ecoworks Webb Architecture branding throughout
+- Ecoworks Web Architecture branding throughout
 
 ### Changed
 - Voice grid displays 2 columns on mobile
@@ -102,4 +118,4 @@ All notable changes to the Podcast Generator API will be documented in this file
 
 ---
 
-**Podcast Generator API** - Built by Ecoworks Webb Architecture
+**Podcast Generator API** - Built by Ecoworks Web Architecture
