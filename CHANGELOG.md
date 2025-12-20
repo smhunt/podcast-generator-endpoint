@@ -2,6 +2,23 @@
 
 All notable changes to the Podcast Generator API will be documented in this file.
 
+## [1.6.0] - 2025-12-15
+
+### Added
+- Auto-open in podcast player feature (macOS only)
+- Support for multiple podcast players:
+  - Default App (system default audio player)
+  - VLC (with playlist queue support)
+  - Apple Music (plays via AppleScript)
+- `GET /api/system-info` endpoint for platform detection and available players
+- `POST /api/open-in-player` endpoint to open podcasts in external players
+- Settings panel with toggle and player selection UI
+- "Open" button on each podcast for manual player launch
+- Player preferences saved to localStorage
+
+### Changed
+- Generation success now shows auto-open status message
+- Podcast list shows "Open" button on macOS systems
 ## [1.6.0] - 2025-12-16
 
 ### Added
