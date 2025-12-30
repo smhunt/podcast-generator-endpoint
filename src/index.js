@@ -2,8 +2,8 @@ import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import OpenAI from 'openai';
-import { createWriteStream, writeFileSync, existsSync } from 'fs';
-import { mkdir } from 'fs/promises';
+import { createWriteStream, writeFileSync, renameSync, unlinkSync, existsSync } from 'fs';
+import { mkdir, readdir, stat, readFile, writeFile } from 'fs/promises';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import NodeID3 from 'node-id3';
@@ -46,6 +46,37 @@ let sessionStats = {
 
 // Ensure audio directory exists
 await mkdir(path.join(__dirname, '../audio'), { recursive: true });
+
+// Podcast metadata storage (for titles, descriptions)
+const metadataPath = path.join(__dirname, '../audio/metadata.json');
+let podcastMetadata = {};
+
+// Load existing metadata
+try {
+  if (existsSync(metadataPath)) {
+    const data = await readFile(metadataPath, 'utf-8');
+    podcastMetadata = JSON.parse(data);
+  }
+} catch (e) {
+  podcastMetadata = {};
+}
+
+// Save metadata helper
+async function saveMetadata() {
+  await writeFile(metadataPath, JSON.stringify(podcastMetadata, null, 2));
+}
+
+// RSS Feed Configuration
+const RSS_CONFIG = {
+  title: process.env.PODCAST_TITLE || 'Ecoworks Podcast',
+  description: process.env.PODCAST_DESCRIPTION || 'AI-generated podcasts from text using OpenAI TTS',
+  author: process.env.PODCAST_AUTHOR || 'Ecoworks Web Architecture',
+  email: process.env.PODCAST_EMAIL || 'sean@ecoworks.ca',
+  imageUrl: process.env.PODCAST_IMAGE || 'https://podcast.dev.ecoworks.ca/podcast-cover.jpg',
+  language: 'en-us',
+  category: 'Technology',
+  explicit: 'no',
+};
 
 // Health check
 app.get('/health', (req, res) => {
@@ -131,6 +162,17 @@ app.post('/api/generate', async (req, res) => {
     NodeID3.write(tags, filepath);
 
     const audioUrl = `/audio/${filename}`;
+
+    // Save metadata for this podcast
+    podcastMetadata[filename] = {
+      title: title,
+      description: `Generated with ${voice} voice`,
+      voice: voice,
+      characters: text.length,
+      cost: cost,
+      createdAt: generatedAt,
+    };
+    await saveMetadata();
 
     // Update session stats
     sessionStats.totalGenerations++;
@@ -220,7 +262,6 @@ app.get('/api/voices', (req, res) => {
 // List generated podcasts
 app.get('/api/podcasts', async (req, res) => {
   try {
-    const { readdir, stat } = await import('fs/promises');
     const audioDir = path.join(__dirname, '../audio');
     const files = await readdir(audioDir);
 
@@ -229,11 +270,15 @@ app.get('/api/podcasts', async (req, res) => {
         .filter(f => f.endsWith('.mp3'))
         .map(async (filename) => {
           const fileStat = await stat(path.join(audioDir, filename));
+          const meta = podcastMetadata[filename] || {};
           return {
             filename,
+            title: meta.title || filename.replace(/_\d+\.mp3$/, '').replace(/_/g, ' '),
+            description: meta.description || '',
             url: `/audio/${filename}`,
             size: fileStat.size,
             createdAt: fileStat.birthtime,
+            voice: meta.voice,
           };
         })
     );
@@ -365,16 +410,226 @@ app.post('/api/open-in-player', async (req, res) => {
   }
 });
 
+// Rename a podcast
+app.put('/api/podcasts/:filename/rename', async (req, res) => {
+  try {
+    const { filename } = req.params;
+    const { newTitle } = req.body;
+
+    if (!newTitle) {
+      return res.status(400).json({ error: 'newTitle is required' });
+    }
+
+    const audioDir = path.join(__dirname, '../audio');
+    const oldPath = path.join(audioDir, filename);
+
+    if (!existsSync(oldPath)) {
+      return res.status(404).json({ error: 'Podcast not found' });
+    }
+
+    // Update metadata with new title
+    if (!podcastMetadata[filename]) {
+      podcastMetadata[filename] = {};
+    }
+    podcastMetadata[filename].title = newTitle;
+    await saveMetadata();
+
+    // Update ID3 tags
+    const tags = NodeID3.read(oldPath);
+    tags.title = newTitle;
+    NodeID3.write(tags, oldPath);
+
+    console.log(`Podcast renamed: ${filename} -> "${newTitle}"`);
+
+    res.json({
+      success: true,
+      filename,
+      newTitle,
+      message: 'Podcast renamed successfully'
+    });
+  } catch (error) {
+    console.error('Error renaming podcast:', error);
+    res.status(500).json({ error: 'Failed to rename podcast', details: error.message });
+  }
+});
+
+// Update podcast metadata (title, description)
+app.patch('/api/podcasts/:filename', async (req, res) => {
+  try {
+    const { filename } = req.params;
+    const { title, description } = req.body;
+
+    const audioDir = path.join(__dirname, '../audio');
+    const filepath = path.join(audioDir, filename);
+
+    if (!existsSync(filepath)) {
+      return res.status(404).json({ error: 'Podcast not found' });
+    }
+
+    if (!podcastMetadata[filename]) {
+      podcastMetadata[filename] = {};
+    }
+
+    if (title) {
+      podcastMetadata[filename].title = title;
+      // Update ID3 tags
+      const tags = NodeID3.read(filepath) || {};
+      tags.title = title;
+      NodeID3.write(tags, filepath);
+    }
+
+    if (description) {
+      podcastMetadata[filename].description = description;
+    }
+
+    await saveMetadata();
+
+    res.json({
+      success: true,
+      filename,
+      metadata: podcastMetadata[filename]
+    });
+  } catch (error) {
+    console.error('Error updating podcast:', error);
+    res.status(500).json({ error: 'Failed to update podcast', details: error.message });
+  }
+});
+
+// Delete a podcast
+app.delete('/api/podcasts/:filename', async (req, res) => {
+  try {
+    const { filename } = req.params;
+    const audioDir = path.join(__dirname, '../audio');
+    const filepath = path.join(audioDir, filename);
+
+    if (!existsSync(filepath)) {
+      return res.status(404).json({ error: 'Podcast not found' });
+    }
+
+    unlinkSync(filepath);
+
+    // Remove from metadata
+    delete podcastMetadata[filename];
+    await saveMetadata();
+
+    console.log(`Podcast deleted: ${filename}`);
+
+    res.json({ success: true, message: 'Podcast deleted successfully' });
+  } catch (error) {
+    console.error('Error deleting podcast:', error);
+    res.status(500).json({ error: 'Failed to delete podcast', details: error.message });
+  }
+});
+
+// RSS Feed for Apple Podcasts
+app.get('/feed.xml', async (req, res) => {
+  try {
+    const baseUrl = process.env.BASE_URL || `https://podcast.dev.ecoworks.ca`;
+    const audioDir = path.join(__dirname, '../audio');
+    const files = await readdir(audioDir);
+
+    const episodes = await Promise.all(
+      files
+        .filter(f => f.endsWith('.mp3'))
+        .map(async (filename) => {
+          const fileStat = await stat(path.join(audioDir, filename));
+          const meta = podcastMetadata[filename] || {};
+          const title = meta.title || filename.replace(/_\d+\.mp3$/, '').replace(/_/g, ' ');
+          const description = meta.description || `Episode generated with ${meta.voice || 'AI'} voice`;
+          const pubDate = new Date(fileStat.birthtime).toUTCString();
+          const duration = Math.ceil(fileStat.size / 16000); // Rough estimate: ~128kbps
+
+          return {
+            title,
+            description,
+            filename,
+            url: `${baseUrl}/audio/${filename}`,
+            size: fileStat.size,
+            pubDate,
+            duration,
+            guid: filename,
+          };
+        })
+    );
+
+    // Sort by date descending
+    episodes.sort((a, b) => new Date(b.pubDate) - new Date(a.pubDate));
+
+    // Generate RSS XML (Apple Podcasts compliant)
+    const rssXml = `<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0"
+     xmlns:itunes="http://www.itunes.com/dtds/podcast-1.0.dtd"
+     xmlns:content="http://purl.org/rss/1.0/modules/content/"
+     xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <title>${escapeXml(RSS_CONFIG.title)}</title>
+    <description>${escapeXml(RSS_CONFIG.description)}</description>
+    <link>${baseUrl}</link>
+    <language>${RSS_CONFIG.language}</language>
+    <copyright>Copyright ${new Date().getFullYear()} ${escapeXml(RSS_CONFIG.author)}</copyright>
+    <lastBuildDate>${new Date().toUTCString()}</lastBuildDate>
+    <atom:link href="${baseUrl}/feed.xml" rel="self" type="application/rss+xml"/>
+
+    <itunes:author>${escapeXml(RSS_CONFIG.author)}</itunes:author>
+    <itunes:summary>${escapeXml(RSS_CONFIG.description)}</itunes:summary>
+    <itunes:owner>
+      <itunes:name>${escapeXml(RSS_CONFIG.author)}</itunes:name>
+      <itunes:email>${RSS_CONFIG.email}</itunes:email>
+    </itunes:owner>
+    <itunes:explicit>${RSS_CONFIG.explicit}</itunes:explicit>
+    <itunes:category text="${RSS_CONFIG.category}"/>
+    <itunes:image href="${RSS_CONFIG.imageUrl}"/>
+    <image>
+      <url>${RSS_CONFIG.imageUrl}</url>
+      <title>${escapeXml(RSS_CONFIG.title)}</title>
+      <link>${baseUrl}</link>
+    </image>
+
+${episodes.map(ep => `    <item>
+      <title>${escapeXml(ep.title)}</title>
+      <description>${escapeXml(ep.description)}</description>
+      <enclosure url="${ep.url}" length="${ep.size}" type="audio/mpeg"/>
+      <guid isPermaLink="false">${ep.guid}</guid>
+      <pubDate>${ep.pubDate}</pubDate>
+      <itunes:duration>${ep.duration}</itunes:duration>
+      <itunes:explicit>no</itunes:explicit>
+    </item>`).join('\n')}
+  </channel>
+</rss>`;
+
+    res.set('Content-Type', 'application/rss+xml');
+    res.send(rssXml);
+  } catch (error) {
+    console.error('Error generating RSS feed:', error);
+    res.status(500).json({ error: 'Failed to generate RSS feed' });
+  }
+});
+
+// Helper function to escape XML special characters
+function escapeXml(str) {
+  if (!str) return '';
+  return str
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&apos;');
+}
+
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`\n🎙️  Podcast Generator API running at:`);
   console.log(`   Local:   http://localhost:${PORT}`);
   console.log(`   Network: http://10.10.10.24:${PORT}`);
   console.log(`\n🌐 Web UI: http://10.10.10.24:${PORT}`);
   console.log(`\n📡 Endpoints:`);
-  console.log(`   POST /api/generate       - Generate podcast from text`);
-  console.log(`   GET  /api/voices         - List available voices`);
-  console.log(`   GET  /api/podcasts       - List generated podcasts`);
-  console.log(`   GET  /api/system-info    - Get platform info`);
-  console.log(`   POST /api/open-in-player - Open podcast in player (macOS)`);
-  console.log(`   GET  /health             - Health check\n`);
+  console.log(`   POST   /api/generate              - Generate podcast from text`);
+  console.log(`   GET    /api/voices                - List available voices`);
+  console.log(`   GET    /api/podcasts              - List generated podcasts`);
+  console.log(`   PUT    /api/podcasts/:file/rename - Rename a podcast`);
+  console.log(`   PATCH  /api/podcasts/:file        - Update podcast metadata`);
+  console.log(`   DELETE /api/podcasts/:file        - Delete a podcast`);
+  console.log(`   GET    /api/system-info           - Get platform info`);
+  console.log(`   POST   /api/open-in-player        - Open in player (macOS)`);
+  console.log(`   GET    /feed.xml                  - RSS feed (Apple Podcasts)`);
+  console.log(`   GET    /health                    - Health check\n`);
 });

@@ -352,7 +352,7 @@
     .podcast-item:hover .play-icon { opacity: 1; }
     .podcast-name { font-weight: 500; font-size: 0.9rem; }
     .podcast-meta { font-size: 0.75rem; color: var(--muted-foreground); }
-    .download-btn {
+    .download-btn, .action-btn {
       background: var(--secondary);
       color: var(--muted-foreground);
       border: none;
@@ -366,7 +366,42 @@
       gap: 4px;
       transition: all 0.2s;
     }
-    .download-btn:hover { background: var(--accent); color: white; }
+    .download-btn:hover, .action-btn:hover { background: var(--accent); color: white; }
+    .action-btn.delete:hover { background: var(--destructive); }
+    .podcast-actions { display: flex; gap: 6px; align-items: center; }
+    .editable-title {
+      cursor: text;
+      padding: 2px 4px;
+      border-radius: 4px;
+      transition: background 0.2s;
+    }
+    .editable-title:hover { background: var(--muted); }
+    .title-input {
+      font-size: 0.9rem;
+      font-weight: 500;
+      padding: 4px 8px;
+      border: 1px solid var(--accent);
+      border-radius: 4px;
+      background: var(--background);
+      color: var(--foreground);
+      width: 100%;
+      max-width: 500px;
+    }
+    .rss-link {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 8px 16px;
+      background: var(--muted);
+      border-radius: var(--radius);
+      color: var(--foreground);
+      text-decoration: none;
+      font-size: 0.85rem;
+      margin-bottom: 16px;
+      transition: all 0.2s;
+    }
+    .rss-link:hover { background: var(--accent); color: white; }
+    .rss-icon { color: var(--accent); }
 
     /* Confirm modal */
     .confirm-modal {
@@ -802,6 +837,13 @@ Built with care by Ecoworks Web Architecture. Try it now by clicking Generate Po
 
     <div class="card" id="podcasts">
       <div class="card-title">Generated Podcasts</div>
+      <a href="/feed.xml" target="_blank" class="rss-link">
+        <svg class="rss-icon" width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+          <circle cx="6.18" cy="17.82" r="2.18"/>
+          <path d="M4 4.44v2.83c7.03 0 12.73 5.7 12.73 12.73h2.83c0-8.59-6.97-15.56-15.56-15.56zm0 5.66v2.83c3.9 0 7.07 3.17 7.07 7.07h2.83c0-5.47-4.43-9.9-9.9-9.9z"/>
+        </svg>
+        Subscribe via RSS (Apple Podcasts)
+      </a>
       <div id="mainPlayer" class="main-player empty">
         <div class="now-playing">Now Playing</div>
         <div class="now-playing-title" id="nowPlayingTitle"></div>
@@ -973,24 +1015,93 @@ Built with care by Ecoworks Web Architecture. Try it now by clicking Generate Po
         const showOpenBtn = systemInfo?.supportsAutoOpen;
         listEl.innerHTML = `<ul class="podcast-list">
           ${data.podcasts.map(p => `
-            <li class="podcast-item" data-url="${API_BASE}${p.url}">
+            <li class="podcast-item" data-url="${API_BASE}${p.url}" data-filename="${p.filename}">
               <div class="podcast-header">
-                <div class="podcast-info" onclick="playPodcast('${API_BASE}${p.url}', '${p.filename}')">
+                <div class="podcast-info" onclick="playPodcast('${API_BASE}${p.url}', '${escapeHtml(p.title || p.filename)}')">
                   <span class="play-icon">&#9658;</span>
                   <div>
-                    <div class="podcast-name">${p.filename}</div>
-                    <div class="podcast-meta">${formatBytes(p.size)} - ${new Date(p.createdAt).toLocaleString()}</div>
+                    <div class="podcast-name editable-title" onclick="event.stopPropagation(); startRename('${p.filename}', this)">${escapeHtml(p.title || p.filename)}</div>
+                    <div class="podcast-meta">${formatBytes(p.size)} - ${new Date(p.createdAt).toLocaleString()}${p.voice ? ' - ' + p.voice : ''}</div>
                   </div>
                 </div>
-                <a href="${API_BASE}${p.url}" download="${p.filename}" class="download-btn">
-                  &#8595; Download
-                </a>
+                <div class="podcast-actions">
+                  <button class="action-btn" onclick="startRename('${p.filename}', this.closest('.podcast-item').querySelector('.podcast-name'))" title="Rename">&#9998;</button>
+                  <a href="${API_BASE}${p.url}" download="${p.filename}" class="download-btn" title="Download">&#8595;</a>
+                  <button class="action-btn delete" onclick="deletePodcast('${p.filename}')" title="Delete">&#10005;</button>
+                </div>
               </div>
             </li>
           `).join('')}
         </ul>`;
       } catch (err) {
         listEl.innerHTML = '<p style="color: var(--destructive);">Failed to load podcasts</p>';
+      }
+    }
+
+    // Escape HTML for safe rendering
+    function escapeHtml(str) {
+      if (!str) return '';
+      return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    }
+
+    // Start rename inline
+    function startRename(filename, titleEl) {
+      const currentTitle = titleEl.textContent;
+      const input = document.createElement('input');
+      input.type = 'text';
+      input.className = 'title-input';
+      input.value = currentTitle;
+
+      const saveRename = async () => {
+        const newTitle = input.value.trim();
+        if (newTitle && newTitle !== currentTitle) {
+          try {
+            const res = await fetch(`${API_BASE}/api/podcasts/${encodeURIComponent(filename)}/rename`, {
+              method: 'PUT',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ newTitle })
+            });
+            if (res.ok) {
+              titleEl.textContent = newTitle;
+            } else {
+              titleEl.textContent = currentTitle;
+              alert('Failed to rename');
+            }
+          } catch (err) {
+            titleEl.textContent = currentTitle;
+            alert('Failed to rename: ' + err.message);
+          }
+        } else {
+          titleEl.textContent = currentTitle;
+        }
+        input.replaceWith(titleEl);
+      };
+
+      input.addEventListener('blur', saveRename);
+      input.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') { e.preventDefault(); input.blur(); }
+        if (e.key === 'Escape') { titleEl.textContent = currentTitle; input.replaceWith(titleEl); }
+      });
+
+      titleEl.replaceWith(input);
+      input.focus();
+      input.select();
+    }
+
+    // Delete podcast
+    async function deletePodcast(filename) {
+      if (!confirm(`Delete "${filename}"? This cannot be undone.`)) return;
+      try {
+        const res = await fetch(`${API_BASE}/api/podcasts/${encodeURIComponent(filename)}`, {
+          method: 'DELETE'
+        });
+        if (res.ok) {
+          loadPodcasts();
+        } else {
+          alert('Failed to delete podcast');
+        }
+      } catch (err) {
+        alert('Failed to delete: ' + err.message);
       }
     }
 
