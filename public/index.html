@@ -937,6 +937,7 @@ Built with care by Ecoworks Web Architecture. Try it now by clicking Generate Po
     const API_BASE = window.location.origin;
     const TTS_RATE = 15;
     let selectedVoice = 'nova';
+    let systemInfo = null;
 
     // Theme toggle
     function toggleTheme() {
@@ -1099,6 +1100,7 @@ Built with care by Ecoworks Web Architecture. Try it now by clicking Generate Po
           `).join('')}
         </ul>`;
       } catch (err) {
+        console.error('Failed to load podcasts:', err);
         listEl.innerHTML = '<p style="color: var(--destructive);">Failed to load podcasts</p>';
       }
     }
