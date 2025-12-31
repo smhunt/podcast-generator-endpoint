@@ -10,6 +10,8 @@ import NodeID3 from 'node-id3';
 import { exec } from 'child_process';
 import { promisify } from 'util';
 import os from 'os';
+import * as mm from 'music-metadata';
+import crypto from 'crypto';
 
 const execAsync = promisify(exec);
 
@@ -66,17 +68,77 @@ async function saveMetadata() {
   await writeFile(metadataPath, JSON.stringify(podcastMetadata, null, 2));
 }
 
-// RSS Feed Configuration
+// RSS Feed Configuration (Apple Podcasts compliant)
 const RSS_CONFIG = {
   title: process.env.PODCAST_TITLE || 'Ecoworks Podcast',
   description: process.env.PODCAST_DESCRIPTION || 'AI-generated podcasts from text using OpenAI TTS',
+  subtitle: process.env.PODCAST_SUBTITLE || 'AI-Generated Audio Content',
   author: process.env.PODCAST_AUTHOR || 'Ecoworks Web Architecture',
   email: process.env.PODCAST_EMAIL || 'sean@ecoworks.ca',
   imageUrl: process.env.PODCAST_IMAGE || 'https://podcast.dev.ecoworks.ca/podcast-cover.jpg',
   language: 'en-us',
   category: 'Technology',
+  subcategory: 'Tech News',
   explicit: 'no',
+  type: 'episodic', // episodic or serial
+  keywords: ['ai', 'tts', 'podcast', 'openai', 'technology', 'ecoworks'],
+  // Unique podcast GUID (generated once, never changes)
+  guid: process.env.PODCAST_GUID || 'ecoworks-podcast-2025-uuid',
 };
+
+// Helper: Generate title from text content
+function generateTitleFromText(text, maxLength = 60) {
+  if (!text) return 'Untitled Episode';
+
+  // Get first sentence or first N words
+  const firstSentence = text.split(/[.!?]/)[0].trim();
+  let title = firstSentence;
+
+  // If first sentence is too long, take first few words
+  if (title.length > maxLength) {
+    const words = text.split(/\s+/).slice(0, 8);
+    title = words.join(' ');
+    if (title.length > maxLength) {
+      title = title.substring(0, maxLength - 3) + '...';
+    }
+  }
+
+  // Capitalize first letter
+  return title.charAt(0).toUpperCase() + title.slice(1);
+}
+
+// Helper: Get next episode number
+function getNextEpisodeNumber() {
+  const episodes = Object.values(podcastMetadata);
+  if (episodes.length === 0) return 1;
+  const maxEp = Math.max(...episodes.map(e => e.episodeNumber || 0));
+  return maxEp + 1;
+}
+
+// Helper: Get actual MP3 duration using music-metadata
+async function getAudioDuration(filepath) {
+  try {
+    const metadata = await mm.parseFile(filepath);
+    return Math.floor(metadata.format.duration || 0);
+  } catch (e) {
+    console.error('Error reading audio duration:', e);
+    // Fallback estimate
+    const stats = await stat(filepath);
+    return Math.ceil(stats.size / 16000);
+  }
+}
+
+// Helper: Format duration for iTunes (HH:MM:SS or MM:SS)
+function formatDuration(seconds) {
+  const hours = Math.floor(seconds / 3600);
+  const minutes = Math.floor((seconds % 3600) / 60);
+  const secs = seconds % 60;
+
+  if (hours > 0) {
+    return `${hours}:${String(minutes).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+  }
+  return `${minutes}:${String(secs).padStart(2, '0')}`;
+}
 
 // Health check
 app.get('/health', (req, res) => {
@@ -86,11 +148,14 @@ app.get('/health', (req, res) => {
 // Generate podcast from text
 app.post('/api/generate', async (req, res) => {
   try {
-    const { text, voice = 'alloy', title = 'podcast' } = req.body;
+    const { text, voice = 'alloy', title: providedTitle, subtitle, keywords, episodeType = 'full' } = req.body;
 
     if (!text) {
       return res.status(400).json({ error: 'Text is required' });
     }
+
+    // Auto-generate title if not provided
+    const title = providedTitle?.trim() || generateTitleFromText(text);
 
     if (!process.env.OPENAI_API_KEY) {
       return res.status(500).json({ error: 'OpenAI API key not configured' });
@@ -163,14 +228,28 @@ app.post('/api/generate', async (req, res) => {
 
     const audioUrl = `/audio/${filename}`;
 
-    // Save metadata for this podcast
+    // Get actual audio duration
+    const duration = await getAudioDuration(filepath);
+    const episodeNumber = getNextEpisodeNumber();
+
+    // Save metadata for this podcast (Apple Podcasts compliant)
     podcastMetadata[filename] = {
       title: title,
-      description: `Generated with ${voice} voice`,
+      description: text.substring(0, 500) + (text.length > 500 ? '...' : ''),
+      subtitle: subtitle || generateTitleFromText(text, 100),
       voice: voice,
       characters: text.length,
       cost: cost,
+      duration: duration,
+      fileSize: fileSizeBytes,
       createdAt: generatedAt,
+      episodeNumber: episodeNumber,
+      seasonNumber: 1,
+      episodeType: episodeType,
+      explicit: false,
+      keywords: keywords || ['ai', 'podcast', 'technology'],
+      author: RSS_CONFIG.author,
+      guid: `${filename}-${crypto.randomUUID()}`,
     };
     await saveMetadata();
 
@@ -521,7 +600,7 @@ app.delete('/api/podcasts/:filename', async (req, res) => {
   }
 });
 
-// RSS Feed for Apple Podcasts
+// RSS Feed for Apple Podcasts (fully compliant)
 app.get('/feed.xml', async (req, res) => {
   try {
     const baseUrl = process.env.BASE_URL || `https://podcast.dev.ecoworks.ca`;
@@ -532,35 +611,44 @@ app.get('/feed.xml', async (req, res) => {
       files
         .filter(f => f.endsWith('.mp3'))
         .map(async (filename) => {
-          const fileStat = await stat(path.join(audioDir, filename));
+          const filepath = path.join(audioDir, filename);
+          const fileStat = await stat(filepath);
           const meta = podcastMetadata[filename] || {};
-          const title = meta.title || filename.replace(/_\d+\.mp3$/, '').replace(/_/g, ' ');
-          const description = meta.description || `Episode generated with ${meta.voice || 'AI'} voice`;
-          const pubDate = new Date(fileStat.birthtime).toUTCString();
-          const duration = Math.ceil(fileStat.size / 16000); // Rough estimate: ~128kbps
+
+          // Get actual duration or use stored value
+          const duration = meta.duration || await getAudioDuration(filepath);
 
           return {
-            title,
-            description,
+            title: meta.title || filename.replace(/_\d+\.mp3$/, '').replace(/_/g, ' '),
+            description: meta.description || `Episode generated with ${meta.voice || 'AI'} voice`,
+            subtitle: meta.subtitle || '',
             filename,
-            url: `${baseUrl}/audio/${filename}`,
+            url: `${baseUrl}/audio/${encodeURIComponent(filename)}`,
             size: fileStat.size,
-            pubDate,
-            duration,
-            guid: filename,
+            pubDate: new Date(meta.createdAt || fileStat.birthtime).toUTCString(),
+            duration: duration,
+            durationFormatted: formatDuration(duration),
+            guid: meta.guid || filename,
+            episodeNumber: meta.episodeNumber || 1,
+            seasonNumber: meta.seasonNumber || 1,
+            episodeType: meta.episodeType || 'full',
+            explicit: meta.explicit ? 'yes' : 'no',
+            keywords: meta.keywords || [],
+            author: meta.author || RSS_CONFIG.author,
           };
         })
     );
 
-    // Sort by date descending
-    episodes.sort((a, b) => new Date(b.pubDate) - new Date(a.pubDate));
+    // Sort by episode number (newest first for episodic)
+    episodes.sort((a, b) => b.episodeNumber - a.episodeNumber);
 
-    // Generate RSS XML (Apple Podcasts compliant)
+    // Generate RSS XML (Apple Podcasts fully compliant)
     const rssXml = `<?xml version="1.0" encoding="UTF-8"?>
 <rss version="2.0"
      xmlns:itunes="http://www.itunes.com/dtds/podcast-1.0.dtd"
      xmlns:content="http://purl.org/rss/1.0/modules/content/"
-     xmlns:atom="http://www.w3.org/2005/Atom">
+     xmlns:atom="http://www.w3.org/2005/Atom"
+     xmlns:podcast="https://podcastindex.org/namespace/1.0">
   <channel>
     <title>${escapeXml(RSS_CONFIG.title)}</title>
     <description>${escapeXml(RSS_CONFIG.description)}</description>
@@ -568,8 +656,11 @@ app.get('/feed.xml', async (req, res) => {
     <language>${RSS_CONFIG.language}</language>
     <copyright>Copyright ${new Date().getFullYear()} ${escapeXml(RSS_CONFIG.author)}</copyright>
     <lastBuildDate>${new Date().toUTCString()}</lastBuildDate>
+    <generator>Ecoworks Podcast Generator v1.0</generator>
     <atom:link href="${baseUrl}/feed.xml" rel="self" type="application/rss+xml"/>
 
+    <itunes:type>${RSS_CONFIG.type}</itunes:type>
+    <itunes:subtitle>${escapeXml(RSS_CONFIG.subtitle)}</itunes:subtitle>
     <itunes:author>${escapeXml(RSS_CONFIG.author)}</itunes:author>
     <itunes:summary>${escapeXml(RSS_CONFIG.description)}</itunes:summary>
     <itunes:owner>
@@ -577,31 +668,103 @@ app.get('/feed.xml', async (req, res) => {
       <itunes:email>${RSS_CONFIG.email}</itunes:email>
     </itunes:owner>
     <itunes:explicit>${RSS_CONFIG.explicit}</itunes:explicit>
-    <itunes:category text="${RSS_CONFIG.category}"/>
+    <itunes:category text="${RSS_CONFIG.category}">
+      <itunes:category text="${RSS_CONFIG.subcategory}"/>
+    </itunes:category>
+    <itunes:keywords>${RSS_CONFIG.keywords.join(',')}</itunes:keywords>
     <itunes:image href="${RSS_CONFIG.imageUrl}"/>
     <image>
       <url>${RSS_CONFIG.imageUrl}</url>
       <title>${escapeXml(RSS_CONFIG.title)}</title>
       <link>${baseUrl}</link>
     </image>
+    <podcast:guid>${RSS_CONFIG.guid}</podcast:guid>
+    <podcast:locked>no</podcast:locked>
 
 ${episodes.map(ep => `    <item>
       <title>${escapeXml(ep.title)}</title>
       <description>${escapeXml(ep.description)}</description>
+      <link>${baseUrl}/#episode-${ep.episodeNumber}</link>
       <enclosure url="${ep.url}" length="${ep.size}" type="audio/mpeg"/>
       <guid isPermaLink="false">${ep.guid}</guid>
       <pubDate>${ep.pubDate}</pubDate>
-      <itunes:duration>${ep.duration}</itunes:duration>
-      <itunes:explicit>no</itunes:explicit>
+      <itunes:title>${escapeXml(ep.title)}</itunes:title>
+      <itunes:subtitle>${escapeXml(ep.subtitle)}</itunes:subtitle>
+      <itunes:summary>${escapeXml(ep.description)}</itunes:summary>
+      <itunes:duration>${ep.durationFormatted}</itunes:duration>
+      <itunes:explicit>${ep.explicit}</itunes:explicit>
+      <itunes:episode>${ep.episodeNumber}</itunes:episode>
+      <itunes:season>${ep.seasonNumber}</itunes:season>
+      <itunes:episodeType>${ep.episodeType}</itunes:episodeType>
+      <itunes:author>${escapeXml(ep.author)}</itunes:author>
+      <itunes:image href="${RSS_CONFIG.imageUrl}"/>
+      <itunes:keywords>${ep.keywords.join(',')}</itunes:keywords>
+      <content:encoded><![CDATA[<p>${escapeXml(ep.description)}</p>]]></content:encoded>
     </item>`).join('\n')}
   </channel>
 </rss>`;
 
     res.set('Content-Type', 'application/rss+xml');
+    res.set('Cache-Control', 'public, max-age=300'); // Cache for 5 minutes
     res.send(rssXml);
   } catch (error) {
     console.error('Error generating RSS feed:', error);
     res.status(500).json({ error: 'Failed to generate RSS feed' });
+  }
+});
+
+// Feed validation endpoint
+app.get('/api/validate-feed', async (req, res) => {
+  try {
+    const baseUrl = process.env.BASE_URL || `https://podcast.dev.ecoworks.ca`;
+    const issues = [];
+    const warnings = [];
+
+    // Check artwork
+    const artworkPath = path.join(__dirname, '../public/podcast-cover.jpg');
+    if (!existsSync(artworkPath)) {
+      issues.push('Missing podcast artwork (podcast-cover.jpg)');
+    }
+
+    // Check episodes
+    const audioDir = path.join(__dirname, '../audio');
+    const files = await readdir(audioDir);
+    const mp3Files = files.filter(f => f.endsWith('.mp3'));
+
+    if (mp3Files.length === 0) {
+      warnings.push('No episodes found - feed will be empty');
+    }
+
+    // Check each episode
+    for (const filename of mp3Files) {
+      const meta = podcastMetadata[filename];
+      if (!meta) {
+        warnings.push(`Missing metadata for: ${filename}`);
+      } else {
+        if (!meta.title) warnings.push(`Missing title for: ${filename}`);
+        if (!meta.description) warnings.push(`Missing description for: ${filename}`);
+        if (!meta.duration) warnings.push(`Missing duration for: ${filename}`);
+      }
+    }
+
+    // Check required config
+    if (!RSS_CONFIG.title) issues.push('Missing podcast title');
+    if (!RSS_CONFIG.author) issues.push('Missing podcast author');
+    if (!RSS_CONFIG.email) issues.push('Missing podcast email');
+
+    const isValid = issues.length === 0;
+
+    res.json({
+      valid: isValid,
+      issues,
+      warnings,
+      feedUrl: `${baseUrl}/feed.xml`,
+      subscribeUrl: `podcast://${baseUrl.replace('https://', '')}/feed.xml`,
+      episodeCount: mp3Files.length,
+      artworkUrl: `${baseUrl}/podcast-cover.jpg`,
+    });
+  } catch (error) {
+    res.status(500).json({ error: 'Validation failed', details: error.message });
   }
 });
 
