@@ -145,6 +145,44 @@ app.get('/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
+// Helper: Split text into chunks under 4096 characters
+function chunkText(text, maxChars = 4000) {
+  const chunks = [];
+  const paragraphs = text.split('\n\n');
+  let currentChunk = '';
+
+  for (const para of paragraphs) {
+    // If single paragraph exceeds limit, split by sentences
+    if (para.length > maxChars) {
+      if (currentChunk) {
+        chunks.push(currentChunk.trim());
+        currentChunk = '';
+      }
+
+      const sentences = para.split(/(?<=[.!?])\s+/);
+      for (const sentence of sentences) {
+        if ((currentChunk + sentence).length > maxChars) {
+          if (currentChunk) chunks.push(currentChunk.trim());
+          currentChunk = sentence + ' ';
+        } else {
+          currentChunk += sentence + ' ';
+        }
+      }
+    } else if ((currentChunk + para).length > maxChars) {
+      chunks.push(currentChunk.trim());
+      currentChunk = para + '\n\n';
+    } else {
+      currentChunk += para + '\n\n';
+    }
+  }
+
+  if (currentChunk.trim()) {
+    chunks.push(currentChunk.trim());
+  }
+
+  return chunks;
+}
+
 // Generate podcast from text
 app.post('/api/generate', async (req, res) => {
   try {
@@ -168,12 +206,24 @@ app.post('/api/generate', async (req, res) => {
 
     console.log(`Generating podcast: "${title}" with voice: ${voice} | Est. cost: $${cost.toFixed(4)}`);
 
-    // Generate speech using OpenAI TTS
-    const mp3 = await openai.audio.speech.create({
-      model: model,
-      voice: voice, // alloy, echo, fable, onyx, nova, shimmer
-      input: text,
-    });
+    // Split text into chunks if needed
+    const chunks = text.length > 4000 ? chunkText(text) : [text];
+    console.log(`Text split into ${chunks.length} chunk(s)`);
+
+    // Generate speech for each chunk
+    const audioBuffers = [];
+    for (let i = 0; i < chunks.length; i++) {
+      console.log(`Generating chunk ${i + 1}/${chunks.length} (${chunks[i].length} chars)...`);
+      const mp3 = await openai.audio.speech.create({
+        model: model,
+        voice: voice,
+        input: chunks[i],
+      });
+      audioBuffers.push(Buffer.from(await mp3.arrayBuffer()));
+    }
+
+    // Concatenate all audio buffers
+    const buffer = Buffer.concat(audioBuffers);
 
     const processingTimeMs = Date.now() - startTime;
 
@@ -183,7 +233,6 @@ app.post('/api/generate', async (req, res) => {
     const filepath = path.join(__dirname, '../audio', filename);
 
     // Save the audio file
-    const buffer = Buffer.from(await mp3.arrayBuffer());
     writeFileSync(filepath, buffer);
     const fileSizeBytes = buffer.length;
 
