@@ -241,6 +241,7 @@
       transition: all 0.2s;
       text-align: center;
       background: var(--background);
+      position: relative;
     }
     .voice-option:hover { border-color: var(--accent); }
     .voice-option.selected {
@@ -249,6 +250,19 @@
     }
     .voice-name { font-weight: 600; font-size: 0.875rem; }
     .voice-desc { font-size: 0.75rem; color: var(--muted-foreground); margin-top: 2px; }
+    .voice-free-badge {
+      position: absolute;
+      top: 6px;
+      right: 6px;
+      background: #10b981;
+      color: white;
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-size: 0.65rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
 
     /* Live preview */
     .live-preview {
@@ -936,7 +950,7 @@ Built with care by Ecoworks Web Architecture. Try it now by clicking Generate Po
   <script>
     const API_BASE = window.location.origin;
     const TTS_RATE = 15;
-    let selectedVoice = 'nova';
+    let selectedVoice = 'piper-ryan'; // Default to free voice
     let systemInfo = null;
 
     // Theme toggle
@@ -981,10 +995,11 @@ Built with care by Ecoworks Web Architecture. Try it now by clicking Generate Po
 
     function updateLivePreview() {
       const charCount = textArea.value.length;
-      const cost = (charCount * TTS_RATE) / 1_000_000;
+      const isFreeVoice = selectedVoice.startsWith('piper-');
+      const cost = isFreeVoice ? 0 : (charCount * TTS_RATE) / 1_000_000;
       const duration = Math.ceil(charCount / 150);
       document.getElementById('previewChars').textContent = charCount.toLocaleString();
-      document.getElementById('previewCost').textContent = `$${cost.toFixed(4)}`;
+      document.getElementById('previewCost').textContent = isFreeVoice ? 'FREE' : `$${cost.toFixed(4)}`;
       document.getElementById('previewDuration').textContent = `~${duration}s`;
 
       // Show auto-title preview if title field is empty
@@ -1006,13 +1021,14 @@ Built with care by Ecoworks Web Architecture. Try it now by clicking Generate Po
       const text = textArea.value.trim();
       const title = titleInput.value.trim() || generateAutoTitle(text);
       const charCount = text.length;
-      const cost = (charCount * TTS_RATE) / 1_000_000;
+      const isFreeVoice = selectedVoice.startsWith('piper-');
+      const cost = isFreeVoice ? 0 : (charCount * TTS_RATE) / 1_000_000;
       const duration = Math.ceil(charCount / 150);
       document.getElementById('confirmTitle').textContent = title;
       document.getElementById('confirmVoice').textContent = selectedVoice;
       document.getElementById('confirmChars').textContent = charCount.toLocaleString();
       document.getElementById('confirmDuration').textContent = `~${duration} seconds`;
-      document.getElementById('confirmCost').textContent = `$${cost.toFixed(4)}`;
+      document.getElementById('confirmCost').textContent = isFreeVoice ? 'FREE' : `$${cost.toFixed(4)}`;
       document.getElementById('confirmModal').classList.remove('hidden');
     }
 
@@ -1065,6 +1081,48 @@ Built with care by Ecoworks Web Architecture. Try it now by clicking Generate Po
           item.classList.add('active');
         }
       });
+    }
+
+    // Load voices from API
+    async function loadVoices() {
+      try {
+        const res = await fetch(`${API_BASE}/api/voices`);
+        const data = await res.json();
+        const voicesGrid = document.getElementById('voicesGrid');
+
+        // Clear existing hardcoded voices
+        voicesGrid.innerHTML = '';
+
+        // Add each voice
+        data.voices.forEach((voice, index) => {
+          const voiceEl = document.createElement('div');
+          voiceEl.className = 'voice-option';
+          voiceEl.dataset.voice = voice.id;
+
+          // Select piper-ryan by default (it's free and high quality)
+          if (voice.id === 'piper-ryan') {
+            voiceEl.classList.add('selected');
+            selectedVoice = voice.id;
+          }
+
+          voiceEl.innerHTML = `
+            ${voice.free ? '<span class="voice-free-badge">FREE</span>' : ''}
+            <div class="voice-name">${voice.name}</div>
+            <div class="voice-desc">${voice.description}</div>
+          `;
+
+          voiceEl.addEventListener('click', () => {
+            document.querySelectorAll('.voice-option').forEach(v => v.classList.remove('selected'));
+            voiceEl.classList.add('selected');
+            selectedVoice = voice.id;
+            updateLivePreview(); // Update cost preview when voice changes
+          });
+
+          voicesGrid.appendChild(voiceEl);
+        });
+      } catch (err) {
+        console.error('Failed to load voices:', err);
+      }
     }
 
     // Load podcasts
@@ -1305,6 +1363,7 @@ Built with care by Ecoworks Web Architecture. Try it now by clicking Generate Po
             appContent.classList.remove('hidden');
             window.Clerk.mountUserButton(document.getElementById('user-button'));
             checkHealth();
+            loadVoices();
             loadPodcasts();
             loadStats();
           } else {
@@ -1318,6 +1377,7 @@ Built with care by Ecoworks Web Architecture. Try it now by clicking Generate Po
         document.getElementById('auth-loading').style.display = 'none';
         document.getElementById('app-content').classList.remove('hidden');
         checkHealth();
+        loadVoices();
         loadPodcasts();
         loadStats();
         setInterval(checkHealth, 30000);

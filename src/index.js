@@ -145,6 +145,89 @@ app.get('/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
+// Piper TTS Configuration (free, local voices)
+const PIPER_VOICES = {
+  'piper-lessac': {
+    id: 'piper-lessac',
+    name: 'Lessac (FREE)',
+    description: 'High-quality male voice - FREE local generation',
+    model: 'en_US-lessac-medium',
+    free: true,
+  },
+  'piper-amy': {
+    id: 'piper-amy',
+    name: 'Amy (FREE)',
+    description: 'Female voice, medium quality - FREE local generation',
+    model: 'en_US-amy-medium',
+    free: true,
+  },
+  'piper-ryan': {
+    id: 'piper-ryan',
+    name: 'Ryan (FREE)',
+    description: 'Male voice, high quality - FREE local generation',
+    model: 'en_US-ryan-high',
+    free: true,
+  },
+};
+
+// Helper: Check if voice is a Piper voice
+function isPiperVoice(voice) {
+  return voice.startsWith('piper-');
+}
+
+// Helper: Generate audio using Piper TTS (FREE)
+async function generateWithPiper(text, voiceId) {
+  const voiceConfig = PIPER_VOICES[voiceId];
+  if (!voiceConfig) {
+    throw new Error(`Unknown Piper voice: ${voiceId}`);
+  }
+
+  const piperPath = '/app/piper/piper/piper';
+  const modelPath = `/app/piper/models/${voiceConfig.model}.onnx`;
+  const textFile = `/tmp/piper_text_${Date.now()}.txt`;
+  const wavFile = `/tmp/piper_${Date.now()}.wav`;
+  const mp3File = wavFile.replace('.wav', '.mp3');
+
+  try {
+    // Write text to a file (better for long text)
+    await writeFile(textFile, text);
+
+    // Piper reads text from stdin or file, outputs WAV
+    const command = `cat "${textFile}" | ${piperPath} --model ${modelPath} --output_file ${wavFile}`;
+
+    console.log(`Running Piper TTS: ${voiceConfig.name} (${text.length} chars)`);
+    await execAsync(command);
+
+    // Convert WAV to MP3 using ffmpeg
+    await execAsync(`ffmpeg -i "${wavFile}" -codec:a libmp3lame -qscale:a 2 "${mp3File}" -y`);
+
+    // Read the MP3 file
+    const buffer = await readFile(mp3File);
+
+    // Cleanup temp files
+    try {
+      unlinkSync(textFile);
+      unlinkSync(wavFile);
+      unlinkSync(mp3File);
+    } catch (e) {
+      // Ignore cleanup errors
+    }
+
+    return buffer;
+  } catch (error) {
+    console.error('Piper TTS error:', error);
+    // Cleanup on error
+    try {
+      if (existsSync(textFile)) unlinkSync(textFile);
+      if (existsSync(wavFile)) unlinkSync(wavFile);
+      if (existsSync(mp3File)) unlinkSync(mp3File);
+    } catch (e) {
+      // Ignore cleanup errors
+    }
+    throw new Error(`Piper generation failed: ${error.message}`);
+  }
+}
+
 // Helper: Split text into chunks under 4096 characters
 function chunkText(text, maxChars = 4000) {
   const chunks = [];
@@ -195,35 +278,44 @@ app.post('/api/generate', async (req, res) => {
     // Auto-generate title if not provided
     const title = providedTitle?.trim() || generateTitleFromText(text);
 
-    if (!process.env.OPENAI_API_KEY) {
-      return res.status(500).json({ error: 'OpenAI API key not configured' });
-    }
-
-    const model = 'tts-1';
-    const costPerChar = TTS_PRICING[model] / 1_000_000;
-    const cost = text.length * costPerChar;
+    const usePiper = isPiperVoice(voice);
+    const model = usePiper ? 'piper-tts' : 'tts-1';
+    const cost = usePiper ? 0 : (text.length * (TTS_PRICING['tts-1'] / 1_000_000));
     const startTime = Date.now();
 
-    console.log(`Generating podcast: "${title}" with voice: ${voice} | Est. cost: $${cost.toFixed(4)}`);
+    console.log(`Generating podcast: "${title}" with voice: ${voice} | ${usePiper ? 'FREE (Piper)' : `Est. cost: $${cost.toFixed(4)}`}`);
 
-    // Split text into chunks if needed
-    const chunks = text.length > 4000 ? chunkText(text) : [text];
-    console.log(`Text split into ${chunks.length} chunk(s)`);
+    let buffer;
 
-    // Generate speech for each chunk
-    const audioBuffers = [];
-    for (let i = 0; i < chunks.length; i++) {
-      console.log(`Generating chunk ${i + 1}/${chunks.length} (${chunks[i].length} chars)...`);
-      const mp3 = await openai.audio.speech.create({
-        model: model,
-        voice: voice,
-        input: chunks[i],
-      });
-      audioBuffers.push(Buffer.from(await mp3.arrayBuffer()));
+    if (usePiper) {
+      // Use Piper TTS (free, local generation)
+      // Piper can handle longer text without chunking
+      buffer = await generateWithPiper(text, voice);
+    } else {
+      // Use OpenAI TTS (paid, cloud-based)
+      if (!process.env.OPENAI_API_KEY) {
+        return res.status(500).json({ error: 'OpenAI API key not configured' });
+      }
+
+      // Split text into chunks if needed
+      const chunks = text.length > 4000 ? chunkText(text) : [text];
+      console.log(`Text split into ${chunks.length} chunk(s)`);
+
+      // Generate speech for each chunk
+      const audioBuffers = [];
+      for (let i = 0; i < chunks.length; i++) {
+        console.log(`Generating chunk ${i + 1}/${chunks.length} (${chunks[i].length} chars)...`);
+        const mp3 = await openai.audio.speech.create({
+          model: 'tts-1',
+          voice: voice,
+          input: chunks[i],
+        });
+        audioBuffers.push(Buffer.from(await mp3.arrayBuffer()));
+      }
+
+      // Concatenate all audio buffers
+      buffer = Buffer.concat(audioBuffers);
     }
-
-    // Concatenate all audio buffers
-    const buffer = Buffer.concat(audioBuffers);
 
     const processingTimeMs = Date.now() - startTime;
 
@@ -377,12 +469,17 @@ app.get('/api/stats', (req, res) => {
 app.get('/api/voices', (req, res) => {
   res.json({
     voices: [
-      { id: 'alloy', name: 'Alloy', description: 'Neutral and balanced' },
-      { id: 'echo', name: 'Echo', description: 'Warm and conversational' },
-      { id: 'fable', name: 'Fable', description: 'Expressive and dramatic' },
-      { id: 'onyx', name: 'Onyx', description: 'Deep and authoritative' },
-      { id: 'nova', name: 'Nova', description: 'Friendly and upbeat' },
-      { id: 'shimmer', name: 'Shimmer', description: 'Clear and professional' },
+      // FREE Piper voices (local generation)
+      { id: 'piper-ryan', name: 'Ryan (FREE)', description: 'Male voice, high quality - FREE local generation', free: true },
+      { id: 'piper-lessac', name: 'Lessac (FREE)', description: 'High-quality male voice - FREE local generation', free: true },
+      { id: 'piper-amy', name: 'Amy (FREE)', description: 'Female voice, medium quality - FREE local generation', free: true },
+      // OpenAI voices (paid)
+      { id: 'alloy', name: 'Alloy', description: 'Neutral and balanced', free: false },
+      { id: 'echo', name: 'Echo', description: 'Warm and conversational', free: false },
+      { id: 'fable', name: 'Fable', description: 'Expressive and dramatic', free: false },
+      { id: 'onyx', name: 'Onyx', description: 'Deep and authoritative', free: false },
+      { id: 'nova', name: 'Nova', description: 'Friendly and upbeat', free: false },
+      { id: 'shimmer', name: 'Shimmer', description: 'Clear and professional', free: false },
     ],
   });
 });
