@@ -175,28 +175,45 @@ function isPiperVoice(voice) {
   return voice.startsWith('piper-');
 }
 
-// Helper: Generate audio using Piper TTS (FREE)
+// Helper: Generate audio using Piper TTS Server (FREE)
 async function generateWithPiper(text, voiceId) {
   const voiceConfig = PIPER_VOICES[voiceId];
   if (!voiceConfig) {
     throw new Error(`Unknown Piper voice: ${voiceId}`);
   }
 
-  const piperPath = '/app/piper/piper/piper';
-  const modelPath = `/app/piper/models/${voiceConfig.model}.onnx`;
-  const textFile = `/tmp/piper_text_${Date.now()}.txt`;
-  const wavFile = `/tmp/piper_${Date.now()}.wav`;
-  const mp3File = wavFile.replace('.wav', '.mp3');
+  // Map piper voice IDs to server voice names
+  const voiceMap = {
+    'piper-amy': 'amy',
+    'piper-lessac': 'lessac',
+    'piper-ryan': 'ryan',
+  };
+  const serverVoice = voiceMap[voiceId] || 'amy';
+
+  const PIPER_URL = process.env.PIPER_URL || 'http://piper-tts:5000';
+  const mp3File = `/tmp/piper_${Date.now()}.mp3`;
 
   try {
-    // Write text to a file (better for long text)
-    await writeFile(textFile, text);
+    console.log(`Calling Piper TTS server: ${voiceConfig.name} (${text.length} chars)`);
 
-    // Piper reads text from stdin or file, outputs WAV
-    const command = `cat "${textFile}" | ${piperPath} --model ${modelPath} --output_file ${wavFile}`;
+    // Call Piper server
+    const response = await fetch(`${PIPER_URL}/synthesize`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text, voice: serverVoice }),
+    });
 
-    console.log(`Running Piper TTS: ${voiceConfig.name} (${text.length} chars)`);
-    await execAsync(command);
+    if (!response.ok) {
+      const error = await response.text();
+      throw new Error(`Piper server error: ${response.status} - ${error}`);
+    }
+
+    // Get WAV audio from response
+    const wavBuffer = Buffer.from(await response.arrayBuffer());
+
+    // Write WAV to temp file for ffmpeg conversion
+    const wavFile = `/tmp/piper_${Date.now()}.wav`;
+    await writeFile(wavFile, wavBuffer);
 
     // Convert WAV to MP3 using ffmpeg
     await execAsync(`ffmpeg -i "${wavFile}" -codec:a libmp3lame -qscale:a 2 "${mp3File}" -y`);
@@ -206,7 +223,6 @@ async function generateWithPiper(text, voiceId) {
 
     // Cleanup temp files
     try {
-      unlinkSync(textFile);
       unlinkSync(wavFile);
       unlinkSync(mp3File);
     } catch (e) {
@@ -218,8 +234,6 @@ async function generateWithPiper(text, voiceId) {
     console.error('Piper TTS error:', error);
     // Cleanup on error
     try {
-      if (existsSync(textFile)) unlinkSync(textFile);
-      if (existsSync(wavFile)) unlinkSync(wavFile);
       if (existsSync(mp3File)) unlinkSync(mp3File);
     } catch (e) {
       // Ignore cleanup errors
