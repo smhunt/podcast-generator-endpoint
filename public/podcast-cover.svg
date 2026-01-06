@@ -1,0 +1,88 @@
+<svg width="2000" height="2000" viewBox="0 0 2000 2000" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bgGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#0a0a0a"/>
+      <stop offset="100%" style="stop-color:#18181b"/>
+    </linearGradient>
+    <linearGradient id="accentGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#f97316"/>
+      <stop offset="100%" style="stop-color:#ea580c"/>
+    </linearGradient>
+    <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="20" result="coloredBlur"/>
+      <feMerge>
+        <feMergeNode in="coloredBlur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+
+  <!-- Background -->
+  <rect width="2000" height="2000" fill="url(#bgGradient)"/>
+
+  <!-- Decorative circles -->
+  <circle cx="1700" cy="300" r="400" fill="#f97316" opacity="0.03"/>
+  <circle cx="300" cy="1700" r="500" fill="#f97316" opacity="0.03"/>
+
+  <!-- Grid pattern -->
+  <g opacity="0.02" stroke="#ffffff" stroke-width="1">
+    <line x1="0" y1="500" x2="2000" y2="500"/>
+    <line x1="0" y1="1000" x2="2000" y2="1000"/>
+    <line x1="0" y1="1500" x2="2000" y2="1500"/>
+    <line x1="500" y1="0" x2="500" y2="2000"/>
+    <line x1="1000" y1="0" x2="1000" y2="2000"/>
+    <line x1="1500" y1="0" x2="1500" y2="2000"/>
+  </g>
+
+  <!-- Main microphone icon -->
+  <g transform="translate(1000, 750)" filter="url(#glow)">
+    <!-- Mic body -->
+    <rect x="-100" y="-250" width="200" height="350" rx="100" fill="url(#accentGradient)"/>
+    <!-- Mic stand arc -->
+    <path d="M -150 100 Q -150 300 0 300 Q 150 300 150 100"
+          fill="none" stroke="#f97316" stroke-width="20" stroke-linecap="round"/>
+    <!-- Mic stand vertical -->
+    <line x1="0" y1="300" x2="0" y2="400" stroke="#f97316" stroke-width="20" stroke-linecap="round"/>
+    <!-- Mic stand base -->
+    <line x1="-80" y1="400" x2="80" y2="400" stroke="#f97316" stroke-width="20" stroke-linecap="round"/>
+    <!-- Mic grille lines -->
+    <g stroke="#0a0a0a" stroke-width="8" opacity="0.3">
+      <line x1="-60" y1="-180" x2="60" y2="-180"/>
+      <line x1="-70" y1="-130" x2="70" y2="-130"/>
+      <line x1="-70" y1="-80" x2="70" y2="-80"/>
+      <line x1="-60" y1="-30" x2="60" y2="-30"/>
+    </g>
+  </g>
+
+  <!-- Sound waves -->
+  <g transform="translate(1000, 750)" opacity="0.4">
+    <path d="M 200 -100 Q 280 0 200 100" fill="none" stroke="#f97316" stroke-width="12" stroke-linecap="round"/>
+    <path d="M 280 -180 Q 400 0 280 180" fill="none" stroke="#f97316" stroke-width="12" stroke-linecap="round"/>
+    <path d="M -200 -100 Q -280 0 -200 100" fill="none" stroke="#f97316" stroke-width="12" stroke-linecap="round"/>
+    <path d="M -280 -180 Q -400 0 -280 180" fill="none" stroke="#f97316" stroke-width="12" stroke-linecap="round"/>
+  </g>
+
+  <!-- Title text -->
+  <text x="1000" y="1400" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="140" font-weight="700" fill="#ffffff" letter-spacing="-3">
+    Ecoworks Podcast
+  </text>
+
+  <!-- Subtitle -->
+  <text x="1000" y="1520" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="56" font-weight="400" fill="#a1a1aa">
+    AI-Generated Audio Content
+  </text>
+
+  <!-- Badge -->
+  <g transform="translate(1000, 1680)">
+    <rect x="-180" y="-30" width="360" height="60" rx="30" fill="url(#accentGradient)" opacity="0.2"/>
+    <rect x="-180" y="-30" width="360" height="60" rx="30" fill="none" stroke="#f97316" stroke-width="2"/>
+    <text x="0" y="12" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="32" font-weight="600" fill="#f97316">
+      Powered by OpenAI TTS
+    </text>
+  </g>
+
+  <!-- Bottom branding -->
+  <text x="1000" y="1900" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="36" font-weight="500" fill="#71717a">
+    ecoworks.ca
+  </text>
+</svg>

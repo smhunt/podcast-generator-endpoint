@@ -241,6 +241,7 @@
       transition: all 0.2s;
       text-align: center;
       background: var(--background);
+      position: relative;
     }
     .voice-option:hover { border-color: var(--accent); }
     .voice-option.selected {
@@ -249,6 +250,19 @@
     }
     .voice-name { font-weight: 600; font-size: 0.875rem; }
     .voice-desc { font-size: 0.75rem; color: var(--muted-foreground); margin-top: 2px; }
+    .voice-free-badge {
+      position: absolute;
+      top: 6px;
+      right: 6px;
+      background: #10b981;
+      color: white;
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-size: 0.65rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
 
     /* Live preview */
     .live-preview {
@@ -352,7 +366,7 @@
     .podcast-item:hover .play-icon { opacity: 1; }
     .podcast-name { font-weight: 500; font-size: 0.9rem; }
     .podcast-meta { font-size: 0.75rem; color: var(--muted-foreground); }
-    .download-btn {
+    .download-btn, .action-btn {
       background: var(--secondary);
       color: var(--muted-foreground);
       border: none;
@@ -366,7 +380,63 @@
       gap: 4px;
       transition: all 0.2s;
     }
-    .download-btn:hover { background: var(--accent); color: white; }
+    .download-btn:hover, .action-btn:hover { background: var(--accent); color: white; }
+    .action-btn.delete:hover { background: var(--destructive); }
+    .podcast-actions { display: flex; gap: 6px; align-items: center; }
+    .editable-title {
+      cursor: text;
+      padding: 2px 4px;
+      border-radius: 4px;
+      transition: background 0.2s;
+    }
+    .editable-title:hover { background: var(--muted); }
+    .title-input {
+      font-size: 0.9rem;
+      font-weight: 500;
+      padding: 4px 8px;
+      border: 1px solid var(--accent);
+      border-radius: 4px;
+      background: var(--background);
+      color: var(--foreground);
+      width: 100%;
+      max-width: 500px;
+    }
+    .rss-link {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 8px 16px;
+      background: var(--muted);
+      border-radius: var(--radius);
+      color: var(--foreground);
+      text-decoration: none;
+      font-size: 0.85rem;
+      margin-bottom: 16px;
+      transition: all 0.2s;
+    }
+    .rss-link:hover { background: var(--accent); color: white; }
+    .rss-icon { color: var(--accent); }
+
+    /* Apple Podcasts Subscribe Button */
+    .subscribe-btn.apple-podcasts {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 20px;
+      background: linear-gradient(135deg, #9B4DCA 0%, #D946EF 50%, #FF6B9D 100%);
+      border-radius: var(--radius);
+      color: white;
+      text-decoration: none;
+      font-size: 0.9rem;
+      font-weight: 600;
+      transition: all 0.2s;
+      box-shadow: 0 2px 8px rgba(155, 77, 202, 0.3);
+    }
+    .subscribe-btn.apple-podcasts:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 4px 12px rgba(155, 77, 202, 0.4);
+    }
+    .subscribe-btn.apple-podcasts svg { fill: white; }
 
     /* Confirm modal */
     .confirm-modal {
@@ -760,8 +830,11 @@ Built with care by Ecoworks Web Architecture. Try it now by clicking Generate Po
           </div>
         </div>
         <div class="form-group">
-          <label>Episode Title</label>
-          <input type="text" id="title" placeholder="my-podcast-episode" value="tech-overview">
+          <label>Episode Title <span style="color: var(--muted-foreground); font-weight: normal;">(optional - auto-generates from content)</span></label>
+          <input type="text" id="title" placeholder="Leave empty to auto-generate from content...">
+          <div id="autoTitlePreview" style="font-size: 0.8rem; color: var(--muted-foreground); margin-top: 4px; display: none;">
+            Auto-title: <span id="autoTitleText" style="color: var(--accent);"></span>
+          </div>
         </div>
         <div class="form-group">
           <label>Select Voice</label>
@@ -802,6 +875,24 @@ Built with care by Ecoworks Web Architecture. Try it now by clicking Generate Po
 
     <div class="card" id="podcasts">
       <div class="card-title">Generated Podcasts</div>
+      <div class="subscribe-buttons" style="display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 16px;">
+        <a href="podcast://podcast.dev.ecoworks.ca/feed.xml" class="subscribe-btn apple-podcasts">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1.5 14.5c0 .83-.67 1.5-1.5 1.5s-1.5-.67-1.5-1.5v-5c0-.83.67-1.5 1.5-1.5s1.5.67 1.5 1.5v5zm6.5 0c0 .83-.67 1.5-1.5 1.5s-1.5-.67-1.5-1.5v-5c0-.83.67-1.5 1.5-1.5s1.5.67 1.5 1.5v5zm-4-3a2.5 2.5 0 100-5 2.5 2.5 0 000 5z"/>
+          </svg>
+          Subscribe in Apple Podcasts
+        </a>
+        <a href="/feed.xml" target="_blank" class="rss-link" style="margin-bottom: 0;">
+          <svg class="rss-icon" width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+            <circle cx="6.18" cy="17.82" r="2.18"/>
+            <path d="M4 4.44v2.83c7.03 0 12.73 5.7 12.73 12.73h2.83c0-8.59-6.97-15.56-15.56-15.56zm0 5.66v2.83c3.9 0 7.07 3.17 7.07 7.07h2.83c0-5.47-4.43-9.9-9.9-9.9z"/>
+          </svg>
+          View RSS Feed
+        </a>
+        <a href="overcast://x-callback-url/add?url=https://podcast.dev.ecoworks.ca/feed.xml" class="rss-link" style="margin-bottom: 0; background: #fc7e0f;">
+          Overcast
+        </a>
+      </div>
       <div id="mainPlayer" class="main-player empty">
         <div class="now-playing">Now Playing</div>
         <div class="now-playing-title" id="nowPlayingTitle"></div>
@@ -859,7 +950,7 @@ Built with care by Ecoworks Web Architecture. Try it now by clicking Generate Po
   <script>
     const API_BASE = window.location.origin;
     const TTS_RATE = 15;
-    let selectedVoice = 'nova';
+    let selectedVoice = 'piper-ryan'; // Default to free voice
     let autoOpenEnabled = false;
     let selectedPlayer = 'default';
     let systemInfo = null;
@@ -910,29 +1001,61 @@ Built with care by Ecoworks Web Architecture. Try it now by clicking Generate Po
 
     // Live preview
     const textArea = document.getElementById('text');
+    const titleInput = document.getElementById('title');
+    const autoTitlePreview = document.getElementById('autoTitlePreview');
+    const autoTitleText = document.getElementById('autoTitleText');
+
+    // Generate title from text (first sentence or first few words)
+    function generateAutoTitle(text, maxLength = 60) {
+      if (!text) return 'Untitled Episode';
+      const firstSentence = text.split(/[.!?]/)[0].trim();
+      let title = firstSentence;
+      if (title.length > maxLength) {
+        const words = text.split(/\s+/).slice(0, 8);
+        title = words.join(' ');
+        if (title.length > maxLength) {
+          title = title.substring(0, maxLength - 3) + '...';
+        }
+      }
+      return title.charAt(0).toUpperCase() + title.slice(1);
+    }
+
     function updateLivePreview() {
       const charCount = textArea.value.length;
-      const cost = (charCount * TTS_RATE) / 1_000_000;
+      const isFreeVoice = selectedVoice.startsWith('piper-');
+      const cost = isFreeVoice ? 0 : (charCount * TTS_RATE) / 1_000_000;
       const duration = Math.ceil(charCount / 150);
       document.getElementById('previewChars').textContent = charCount.toLocaleString();
-      document.getElementById('previewCost').textContent = `$${cost.toFixed(4)}`;
+      document.getElementById('previewCost').textContent = isFreeVoice ? 'FREE' : `$${cost.toFixed(4)}`;
       document.getElementById('previewDuration').textContent = `~${duration}s`;
+
+      // Show auto-title preview if title field is empty
+      if (!titleInput.value.trim() && textArea.value.trim()) {
+        const autoTitle = generateAutoTitle(textArea.value);
+        autoTitleText.textContent = autoTitle;
+        autoTitlePreview.style.display = 'block';
+      } else {
+        autoTitlePreview.style.display = 'none';
+      }
     }
+
     textArea.addEventListener('input', updateLivePreview);
+    titleInput.addEventListener('input', updateLivePreview);
     updateLivePreview();
 
     // Confirmation modal
     function showConfirmModal() {
       const text = textArea.value.trim();
-      const title = document.getElementById('title').value.trim() || 'podcast';
+      const title = titleInput.value.trim() || generateAutoTitle(text);
       const charCount = text.length;
-      const cost = (charCount * TTS_RATE) / 1_000_000;
+      const isFreeVoice = selectedVoice.startsWith('piper-');
+      const cost = isFreeVoice ? 0 : (charCount * TTS_RATE) / 1_000_000;
       const duration = Math.ceil(charCount / 150);
       document.getElementById('confirmTitle').textContent = title;
       document.getElementById('confirmVoice').textContent = selectedVoice;
       document.getElementById('confirmChars').textContent = charCount.toLocaleString();
       document.getElementById('confirmDuration').textContent = `~${duration} seconds`;
-      document.getElementById('confirmCost').textContent = `$${cost.toFixed(4)}`;
+      document.getElementById('confirmCost').textContent = isFreeVoice ? 'FREE' : `$${cost.toFixed(4)}`;
       document.getElementById('confirmModal').classList.remove('hidden');
     }
 
@@ -987,6 +1110,48 @@ Built with care by Ecoworks Web Architecture. Try it now by clicking Generate Po
       });
     }
 
+    // Load voices from API
+    async function loadVoices() {
+      try {
+        const res = await fetch(`${API_BASE}/api/voices`);
+        const data = await res.json();
+        const voicesGrid = document.getElementById('voicesGrid');
+
+        // Clear existing hardcoded voices
+        voicesGrid.innerHTML = '';
+
+        // Add each voice
+        data.voices.forEach((voice, index) => {
+          const voiceEl = document.createElement('div');
+          voiceEl.className = 'voice-option';
+          voiceEl.dataset.voice = voice.id;
+
+          // Select piper-ryan by default (it's free and high quality)
+          if (voice.id === 'piper-ryan') {
+            voiceEl.classList.add('selected');
+            selectedVoice = voice.id;
+          }
+
+          voiceEl.innerHTML = `
+            ${voice.free ? '<span class="voice-free-badge">FREE</span>' : ''}
+            <div class="voice-name">${voice.name}</div>
+            <div class="voice-desc">${voice.description}</div>
+          `;
+
+          voiceEl.addEventListener('click', () => {
+            document.querySelectorAll('.voice-option').forEach(v => v.classList.remove('selected'));
+            voiceEl.classList.add('selected');
+            selectedVoice = voice.id;
+            updateLivePreview(); // Update cost preview when voice changes
+          });
+
+          voicesGrid.appendChild(voiceEl);
+        });
+      } catch (err) {
+        console.error('Failed to load voices:', err);
+      }
+    }
+
     // Load podcasts
     async function loadPodcasts() {
       const listEl = document.getElementById('podcastsList');
@@ -1001,24 +1166,94 @@ Built with care by Ecoworks Web Architecture. Try it now by clicking Generate Po
         const showOpenBtn = systemInfo?.supportsAutoOpen;
         listEl.innerHTML = `<ul class="podcast-list">
           ${data.podcasts.map(p => `
-            <li class="podcast-item" data-url="${API_BASE}${p.url}">
+            <li class="podcast-item" data-url="${API_BASE}${p.url}" data-filename="${p.filename}">
               <div class="podcast-header">
-                <div class="podcast-info" onclick="playPodcast('${API_BASE}${p.url}', '${p.filename}')">
+                <div class="podcast-info" onclick="playPodcast('${API_BASE}${p.url}', '${escapeHtml(p.title || p.filename)}')">
                   <span class="play-icon">&#9658;</span>
                   <div>
-                    <div class="podcast-name">${p.filename}</div>
-                    <div class="podcast-meta">${formatBytes(p.size)} - ${new Date(p.createdAt).toLocaleString()}</div>
+                    <div class="podcast-name editable-title" onclick="event.stopPropagation(); startRename('${p.filename}', this)">${escapeHtml(p.title || p.filename)}</div>
+                    <div class="podcast-meta">${formatBytes(p.size)} - ${new Date(p.createdAt).toLocaleString()}${p.voice ? ' - ' + p.voice : ''}</div>
                   </div>
                 </div>
-                <a href="${API_BASE}${p.url}" download="${p.filename}" class="download-btn">
-                  &#8595; Download
-                </a>
+                <div class="podcast-actions">
+                  <button class="action-btn" onclick="startRename('${p.filename}', this.closest('.podcast-item').querySelector('.podcast-name'))" title="Rename">&#9998;</button>
+                  <a href="${API_BASE}${p.url}" download="${p.filename}" class="download-btn" title="Download">&#8595;</a>
+                  <button class="action-btn delete" onclick="deletePodcast('${p.filename}')" title="Delete">&#10005;</button>
+                </div>
               </div>
             </li>
           `).join('')}
         </ul>`;
       } catch (err) {
+        console.error('Failed to load podcasts:', err);
         listEl.innerHTML = '<p style="color: var(--destructive);">Failed to load podcasts</p>';
+      }
+    }
+
+    // Escape HTML for safe rendering
+    function escapeHtml(str) {
+      if (!str) return '';
+      return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    }
+
+    // Start rename inline
+    function startRename(filename, titleEl) {
+      const currentTitle = titleEl.textContent;
+      const input = document.createElement('input');
+      input.type = 'text';
+      input.className = 'title-input';
+      input.value = currentTitle;
+
+      const saveRename = async () => {
+        const newTitle = input.value.trim();
+        if (newTitle && newTitle !== currentTitle) {
+          try {
+            const res = await fetch(`${API_BASE}/api/podcasts/${encodeURIComponent(filename)}/rename`, {
+              method: 'PUT',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ newTitle })
+            });
+            if (res.ok) {
+              titleEl.textContent = newTitle;
+            } else {
+              titleEl.textContent = currentTitle;
+              alert('Failed to rename');
+            }
+          } catch (err) {
+            titleEl.textContent = currentTitle;
+            alert('Failed to rename: ' + err.message);
+          }
+        } else {
+          titleEl.textContent = currentTitle;
+        }
+        input.replaceWith(titleEl);
+      };
+
+      input.addEventListener('blur', saveRename);
+      input.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') { e.preventDefault(); input.blur(); }
+        if (e.key === 'Escape') { titleEl.textContent = currentTitle; input.replaceWith(titleEl); }
+      });
+
+      titleEl.replaceWith(input);
+      input.focus();
+      input.select();
+    }
+
+    // Delete podcast
+    async function deletePodcast(filename) {
+      if (!confirm(`Delete "${filename}"? This cannot be undone.`)) return;
+      try {
+        const res = await fetch(`${API_BASE}/api/podcasts/${encodeURIComponent(filename)}`, {
+          method: 'DELETE'
+        });
+        if (res.ok) {
+          loadPodcasts();
+        } else {
+          alert('Failed to delete podcast');
+        }
+      } catch (err) {
+        alert('Failed to delete: ' + err.message);
       }
     }
 
@@ -1038,8 +1273,8 @@ Built with care by Ecoworks Web Architecture. Try it now by clicking Generate Po
       hideConfirmModal();
       const btn = document.getElementById('generateBtn');
       const resultEl = document.getElementById('generateResult');
-      const text = document.getElementById('text').value.trim();
-      const title = document.getElementById('title').value.trim() || 'podcast';
+      const text = textArea.value.trim();
+      const title = titleInput.value.trim(); // Server will auto-generate if empty
       btn.disabled = true;
       btn.innerHTML = '<span class="loading"></span> Generating...';
       resultEl.innerHTML = '';
@@ -1156,6 +1391,7 @@ Built with care by Ecoworks Web Architecture. Try it now by clicking Generate Po
             appContent.classList.remove('hidden');
             window.Clerk.mountUserButton(document.getElementById('user-button'));
             checkHealth();
+            loadVoices();
             loadPodcasts();
             loadStats();
             loadSystemInfo();
@@ -1170,6 +1406,7 @@ Built with care by Ecoworks Web Architecture. Try it now by clicking Generate Po
         document.getElementById('auth-loading').style.display = 'none';
         document.getElementById('app-content').classList.remove('hidden');
         checkHealth();
+        loadVoices();
         loadPodcasts();
         loadStats();
         loadSystemInfo();

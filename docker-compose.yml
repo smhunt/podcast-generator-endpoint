@@ -1,0 +1,63 @@
+services:
+  podcast-generator:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        BUILD_DATE: ${BUILD_DATE:-}
+        GIT_COMMIT: ${GIT_COMMIT:-}
+        VERSION: ${VERSION:-1.5.0}
+    image: podcast-generator:latest
+    container_name: podcast-generator-api
+    restart: unless-stopped
+    ports:
+      - "3087:3087"
+    environment:
+      - NODE_ENV=production
+      - PORT=3087
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - PIPER_URL=http://piper-tts:5000
+    volumes:
+      - ./audio:/app/audio
+      - ./src:/app/src
+    depends_on:
+      piper-tts:
+        condition: service_healthy
+    labels:
+      com.ecoworks.project: "podcast-generator"
+      com.ecoworks.component: "api"
+      com.ecoworks.environment: "prod"
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3087/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  piper-tts:
+    build:
+      context: ./piper-server
+      dockerfile: Dockerfile
+    image: piper-tts-server:latest
+    container_name: piper-tts-server
+    restart: unless-stopped
+    labels:
+      com.ecoworks.project: "podcast-generator"
+      com.ecoworks.component: "piper-tts"
+      com.ecoworks.environment: "prod"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
