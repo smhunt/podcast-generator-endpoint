@@ -951,7 +951,34 @@ Built with care by Ecoworks Web Architecture. Try it now by clicking Generate Po
     const API_BASE = window.location.origin;
     const TTS_RATE = 15;
     let selectedVoice = 'piper-ryan'; // Default to free voice
+    let autoOpenEnabled = false;
+    let selectedPlayer = 'default';
     let systemInfo = null;
+
+    // Load system info for auto-open feature
+    async function loadSystemInfo() {
+      try {
+        const res = await fetch(`${API_BASE}/api/system-info`);
+        systemInfo = await res.json();
+      } catch (err) {
+        console.error('Failed to load system info:', err);
+        systemInfo = { supportsAutoOpen: false, availablePlayers: [] };
+      }
+    }
+
+    // Open podcast in external player (Mac only)
+    async function openInPlayer(filename) {
+      if (!autoOpenEnabled || !systemInfo?.supportsAutoOpen) return;
+      try {
+        await fetch(`${API_BASE}/api/open-in-player`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ filename, player: selectedPlayer })
+        });
+      } catch (err) {
+        console.error('Failed to open in player:', err);
+      }
+    }
 
     // Theme toggle
     function toggleTheme() {
@@ -1339,6 +1366,7 @@ Built with care by Ecoworks Web Architecture. Try it now by clicking Generate Po
           checkHealth();
           loadPodcasts();
           loadStats();
+          loadSystemInfo();
           setInterval(checkHealth, 30000);
         } else {
           // User is not signed in
@@ -1366,6 +1394,7 @@ Built with care by Ecoworks Web Architecture. Try it now by clicking Generate Po
             loadVoices();
             loadPodcasts();
             loadStats();
+            loadSystemInfo();
           } else {
             appContent.classList.add('hidden');
             signInScreen.style.display = 'flex';
@@ -1380,6 +1409,7 @@ Built with care by Ecoworks Web Architecture. Try it now by clicking Generate Po
         loadVoices();
         loadPodcasts();
         loadStats();
+        loadSystemInfo();
         setInterval(checkHealth, 30000);
       }
     });
