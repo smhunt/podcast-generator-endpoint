@@ -2,7 +2,8 @@ import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import OpenAI from 'openai';
-import { createWriteStream, writeFileSync, renameSync, unlinkSync, existsSync } from 'fs';
+import https from 'https';
+import { createWriteStream, writeFileSync, renameSync, unlinkSync, existsSync, readFileSync } from 'fs';
 import { mkdir, readdir, stat, readFile, writeFile } from 'fs/promises';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -986,14 +987,42 @@ function escapeXml(str) {
     .replace(/'/g, '&apos;');
 }
 
-app.listen(PORT, '0.0.0.0', () => {
-  console.log(`\n🎙️  Podcast Generator API running at:`);
-  console.log(`   Local:   http://localhost:${PORT}`);
-  console.log(`   Network: http://10.10.10.24:${PORT}`);
-  console.log(`\n🌐 Web UI: http://10.10.10.24:${PORT}`);
+// Start server (HTTPS if certs available, otherwise HTTP)
+const SSL_CERT_PATH = process.env.SSL_CERT_PATH || '/certs/cert.pem';
+const SSL_KEY_PATH = process.env.SSL_KEY_PATH || '/certs/key.pem';
+
+const startServer = () => {
+  const protocol = existsSync(SSL_CERT_PATH) && existsSync(SSL_KEY_PATH) ? 'https' : 'http';
+
+  if (protocol === 'https') {
+    const httpsOptions = {
+      cert: readFileSync(SSL_CERT_PATH),
+      key: readFileSync(SSL_KEY_PATH),
+    };
+    https.createServer(httpsOptions, app).listen(PORT, '0.0.0.0', () => {
+      console.log(`\n🎙️  Podcast Generator API running at:`);
+      console.log(`   Local:   https://localhost:${PORT}`);
+      console.log(`   Network: https://dev.ecoworks.ca:${PORT}`);
+      console.log(`\n🌐 Web UI: https://dev.ecoworks.ca:${PORT}`);
+      logEndpoints();
+    });
+  } else {
+    app.listen(PORT, '0.0.0.0', () => {
+      console.log(`\n🎙️  Podcast Generator API running at:`);
+      console.log(`   Local:   http://localhost:${PORT}`);
+      console.log(`   Network: http://10.10.10.24:${PORT}`);
+      console.log(`\n🌐 Web UI: http://10.10.10.24:${PORT}`);
+      console.log(`\n⚠️  Running without HTTPS - mount SSL certs to /certs/ for HTTPS`);
+      logEndpoints();
+    });
+  }
+};
+
+const logEndpoints = () => {
   console.log(`\n📡 Endpoints:`);
   console.log(`   POST   /api/generate              - Generate podcast from text`);
   console.log(`   GET    /api/voices                - List available voices`);
+  console.log(`   GET    /api/voice-sample/:id      - Get voice sample audio`);
   console.log(`   GET    /api/podcasts              - List generated podcasts`);
   console.log(`   PUT    /api/podcasts/:file/rename - Rename a podcast`);
   console.log(`   PATCH  /api/podcasts/:file        - Update podcast metadata`);
@@ -1002,4 +1031,6 @@ app.listen(PORT, '0.0.0.0', () => {
   console.log(`   POST   /api/open-in-player        - Open in player (macOS)`);
   console.log(`   GET    /feed.xml                  - RSS feed (Apple Podcasts)`);
   console.log(`   GET    /health                    - Health check\n`);
-});
+};
+
+startServer();

@@ -21,6 +21,7 @@ services:
       - ./audio:/app/audio
       - ./src:/app/src
       - ./public/samples:/app/public/samples
+      - /Users/seanhunt/Code/.shared-certs:/certs:ro
     depends_on:
       piper-tts:
         condition: service_healthy
