@@ -20,6 +20,7 @@ services:
     volumes:
       - ./audio:/app/audio
       - ./src:/app/src
+      - ./public/samples:/app/public/samples
     depends_on:
       piper-tts:
         condition: service_healthy

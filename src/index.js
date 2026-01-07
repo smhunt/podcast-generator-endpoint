@@ -498,6 +498,53 @@ app.get('/api/voices', (req, res) => {
   });
 });
 
+// Voice sample text (~30 seconds of speech)
+const SAMPLE_TEXT = `Welcome to the Ecoworks Podcast Generator. This is a sample of my voice so you can hear how I sound before creating your podcast. I can read any text you provide and transform it into professional audio content. Whether you're creating educational content, storytelling, news updates, or creative projects, I'm here to bring your words to life. The quality you hear now is exactly what you'll get in your final podcast episodes.`;
+
+// Generate or serve voice sample
+app.get('/api/voice-sample/:voiceId', async (req, res) => {
+  const { voiceId } = req.params;
+  const samplesDir = path.join(__dirname, '../public/samples');
+  const samplePath = path.join(samplesDir, `${voiceId}.mp3`);
+
+  // Check if sample already exists
+  if (existsSync(samplePath)) {
+    return res.sendFile(samplePath);
+  }
+
+  // Generate sample
+  try {
+    console.log(`Generating voice sample for: ${voiceId}`);
+    let buffer;
+
+    if (isPiperVoice(voiceId)) {
+      buffer = await generateWithPiper(SAMPLE_TEXT, voiceId);
+    } else {
+      // OpenAI voice
+      if (!process.env.OPENAI_API_KEY) {
+        return res.status(500).json({ error: 'OpenAI API key not configured' });
+      }
+      const mp3 = await openai.audio.speech.create({
+        model: 'tts-1',
+        voice: voiceId,
+        input: SAMPLE_TEXT,
+      });
+      buffer = Buffer.from(await mp3.arrayBuffer());
+    }
+
+    // Save sample for future requests
+    await mkdir(samplesDir, { recursive: true });
+    writeFileSync(samplePath, buffer);
+    console.log(`Voice sample saved: ${voiceId}.mp3`);
+
+    res.set('Content-Type', 'audio/mpeg');
+    res.send(buffer);
+  } catch (error) {
+    console.error(`Error generating sample for ${voiceId}:`, error);
+    res.status(500).json({ error: 'Failed to generate voice sample', details: error.message });
+  }
+});
+
 // List generated podcasts
 app.get('/api/podcasts', async (req, res) => {
   try {

@@ -263,6 +263,27 @@
       text-transform: uppercase;
       letter-spacing: 0.5px;
     }
+    .voice-sample-btn {
+      position: absolute;
+      bottom: 6px;
+      right: 6px;
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      background: var(--accent);
+      color: white;
+      border: none;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      opacity: 0.8;
+      transition: all 0.2s;
+    }
+    .voice-sample-btn:hover { opacity: 1; transform: scale(1.1); }
+    .voice-sample-btn.playing { background: #ef4444; }
+    .voice-sample-btn.loading { opacity: 0.5; cursor: wait; }
+    .voice-sample-btn svg { width: 14px; height: 14px; }
 
     /* Live preview */
     .live-preview {
@@ -1083,6 +1104,58 @@ Built with care by Ecoworks Web Architecture. Try it now by clicking Generate Po
       });
     }
 
+    // Voice sample audio player
+    let sampleAudio = null;
+    let currentlyPlayingBtn = null;
+
+    function playSample(voiceId, btn) {
+      // If same voice is playing, stop it
+      if (sampleAudio && currentlyPlayingBtn === btn) {
+        sampleAudio.pause();
+        sampleAudio.currentTime = 0;
+        btn.classList.remove('playing');
+        btn.innerHTML = `<svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>`;
+        currentlyPlayingBtn = null;
+        return;
+      }
+
+      // Stop any currently playing sample
+      if (sampleAudio) {
+        sampleAudio.pause();
+        if (currentlyPlayingBtn) {
+          currentlyPlayingBtn.classList.remove('playing');
+          currentlyPlayingBtn.innerHTML = `<svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>`;
+        }
+      }
+
+      // Show loading state
+      btn.classList.add('loading');
+      btn.innerHTML = `<svg viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="3"/></svg>`;
+
+      // Create new audio element
+      sampleAudio = new Audio(`${API_BASE}/api/voice-sample/${voiceId}`);
+      currentlyPlayingBtn = btn;
+
+      sampleAudio.oncanplay = () => {
+        btn.classList.remove('loading');
+        btn.classList.add('playing');
+        btn.innerHTML = `<svg viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>`;
+        sampleAudio.play();
+      };
+
+      sampleAudio.onended = () => {
+        btn.classList.remove('playing');
+        btn.innerHTML = `<svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>`;
+        currentlyPlayingBtn = null;
+      };
+
+      sampleAudio.onerror = () => {
+        btn.classList.remove('loading');
+        btn.innerHTML = `<svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>`;
+        console.error('Failed to load voice sample');
+      };
+    }
+
     // Load voices from API
     async function loadVoices() {
       try {
@@ -1109,13 +1182,25 @@ Built with care by Ecoworks Web Architecture. Try it now by clicking Generate Po
             ${voice.free ? '<span class="voice-free-badge">FREE</span>' : ''}
             <div class="voice-name">${voice.name}</div>
             <div class="voice-desc">${voice.description}</div>
+            <button class="voice-sample-btn" title="Play 30-sec sample" data-voice="${voice.id}">
+              <svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+            </button>
           `;
 
-          voiceEl.addEventListener('click', () => {
+          // Voice selection (clicking the card, not the play button)
+          voiceEl.addEventListener('click', (e) => {
+            if (e.target.closest('.voice-sample-btn')) return; // Don't select if clicking play button
             document.querySelectorAll('.voice-option').forEach(v => v.classList.remove('selected'));
             voiceEl.classList.add('selected');
             selectedVoice = voice.id;
             updateLivePreview(); // Update cost preview when voice changes
+          });
+
+          // Play sample button
+          const playBtn = voiceEl.querySelector('.voice-sample-btn');
+          playBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            playSample(voice.id, playBtn);
           });
 
           voicesGrid.appendChild(voiceEl);
