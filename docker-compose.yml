@@ -20,7 +20,7 @@ services:
     volumes:
       - ./audio:/app/audio
       - ./src:/app/src
-      - ./public/samples:/app/public/samples
+      - ./public:/app/public
       - /Users/seanhunt/Code/.shared-certs:/certs:ro
     depends_on:
       piper-tts:
